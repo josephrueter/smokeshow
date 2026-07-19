@@ -25,6 +25,7 @@ export function bucketForPM25(pm25) {
 // and the OG image so all three always tell the same story.
 export function buildDaySummaries({ timesUTC, pm25, nowIndex, timezone }) {
   const dayMax = new Map();
+  const dayMin = new Map();
   const dayLabel = new Map();
   const dayPartMax = new Map(); // key -> [morningMax, afternoonMax, eveningMax]
   const order = [];
@@ -46,6 +47,7 @@ export function buildDaySummaries({ timesUTC, pm25, nowIndex, timezone }) {
     }
     const val = pm25[i] ?? -Infinity;
     dayMax.set(key, Math.max(dayMax.get(key) ?? -Infinity, val));
+    if (pm25[i] != null) dayMin.set(key, Math.min(dayMin.get(key) ?? Infinity, pm25[i]));
     const hour = Number(hourFmt.format(d)) % 24;
     const parts = dayPartMax.get(key);
     DAYPARTS.forEach((p, pi) => {
@@ -56,10 +58,42 @@ export function buildDaySummaries({ timesUTC, pm25, nowIndex, timezone }) {
     key,
     weekday: dayLabel.get(key),
     level: levelForPM25(dayMax.get(key)),
+    min: dayMin.get(key) ?? null,
+    max: dayMax.get(key) === -Infinity ? null : dayMax.get(key),
     dayParts: DAYPARTS.map((p, pi) => ({
       key: p.key,
       label: p.label,
       bucket: bucketForPM25(dayPartMax.get(key)[pi]),
     })),
   }));
+}
+
+// The three calendar days before today, from the reanalysis window
+// (past_days=3 in the fetch). Past air is a model estimate, not monitor
+// readings — the UI labels it that way.
+export function buildPastDaySummaries({ timesUTC, pm25, nowIndex, timezone, count = 3 }) {
+  const keyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
+  const wdFmt = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: timezone });
+  const todayKey = keyFmt.format(new Date(timesUTC[nowIndex] + 'Z'));
+  const map = new Map();
+  const order = [];
+  for (let i = 0; i < nowIndex; i++) {
+    const d = new Date(timesUTC[i] + 'Z');
+    const key = keyFmt.format(d);
+    if (key === todayKey) break;
+    if (!map.has(key)) {
+      order.push(key);
+      map.set(key, { key, weekday: wdFmt.format(d), min: Infinity, max: -Infinity });
+    }
+    const v = pm25[i];
+    if (v == null) continue;
+    const entry = map.get(key);
+    entry.min = Math.min(entry.min, v);
+    entry.max = Math.max(entry.max, v);
+  }
+  return order
+    .slice(-count)
+    .map((k) => map.get(k))
+    .filter((e) => e.max !== -Infinity)
+    .map((e) => ({ ...e, level: levelForPM25(e.max), isPast: true }));
 }

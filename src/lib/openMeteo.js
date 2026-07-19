@@ -10,7 +10,10 @@ const AIR_QUALITY_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 // to stay in sync. Local-time display is handled separately at render time
 // via the browser's own Intl timezone, so the user still only ever sees
 // local time — this only changes how the raw series is fetched.
-export async function fetchGridPM25(points, { pastDays = 1, forecastDays = 5 } = {}) {
+// pastDays=3 feeds the strip's slide-out "last three days" panel; every fetch
+// (center, grid, zoom tiers) must share the same value so hour indices align
+// across all series for the scrubber and field animation.
+export async function fetchGridPM25(points, { pastDays = 3, forecastDays = 5 } = {}) {
   const latitude = points.map((p) => p.lat).join(',');
   const longitude = points.map((p) => p.lon).join(',');
   const url =
