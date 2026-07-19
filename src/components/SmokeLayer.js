@@ -23,6 +23,11 @@ export class SmokeCanvasLayer extends L.Layer {
     this._redraw();
   }
 
+  // Hidden while the sharper HRRR image frames cover the current hour.
+  setVisible(visible) {
+    if (this._canvas) this._canvas.style.display = visible ? '' : 'none';
+  }
+
   onAdd(map) {
     this._map = map;
     this._canvas = L.DomUtil.create('canvas', 'smoke-canvas-layer');

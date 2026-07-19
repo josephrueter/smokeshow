@@ -454,6 +454,41 @@ body {
   stroke-dasharray: 4 3;
 }
 
+.agreement-band__line--hrrr {
+  stroke: var(--all-clear);
+  stroke-width: 2;
+}
+
+.agreement-band__legend {
+  display: flex;
+  gap: 0.9rem;
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.agreement-band__legend-item::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+.agreement-band__legend-item--current::before {
+  background: var(--accent);
+}
+
+.agreement-band__legend-item--previous::before {
+  background: var(--text-dim);
+}
+
+.agreement-band__legend-item--hrrr::before {
+  background: var(--all-clear);
+}
+
 .agreement-band__caveat,
 .agreement-band__standing-caveat {
   font-size: 0.78rem;

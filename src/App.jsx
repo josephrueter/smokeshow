@@ -16,6 +16,7 @@ import { reverseGeocode } from './lib/geocoding.js';
 import { buildGrid, snapCoord } from './lib/grid.js';
 import { fetchGridPM25, findNowIndex } from './lib/openMeteo.js';
 import { computeAgreement } from './lib/agreement.js';
+import { fetchHRRR, hrrrSeriesAt } from './lib/hrrr.js';
 import { buildForecastText } from './lib/forecastText.js';
 import { buildDaySummaries } from './lib/days.js';
 import { computeVerdict, verdictHeadline } from './lib/verdict.js';
@@ -69,7 +70,7 @@ export default function App() {
   const [gridFailed, setGridFailed] = useState(false);
   const fetchingTiersRef = useRef(new Set());
   const [previousRun, setPreviousRun] = useState(null);
-  const [agreement, setAgreement] = useState(null);
+  const [hrrr, setHrrr] = useState(null);
   const [nowIndex, setNowIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -81,6 +82,8 @@ export default function App() {
     const shared = parseSharedParams();
     if (shared) setLocation(shared);
     else requestLocation().then(setLocation);
+    // HRRR feed is additive — the app is fully functional without it.
+    fetchHRRR().then(setHrrr).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -132,14 +135,6 @@ export default function App() {
             ? cachedPrev
             : null;
 
-        setAgreement(
-          computeAgreement({
-            timesUTC: center.timesUTC,
-            pm25: center.pm25,
-            fetchedAtMs,
-            previousRun: usablePrev,
-          }),
-        );
         setJSON(PREVIOUS_RUN_KEY, {
           lat: location.lat,
           lon: location.lon,
@@ -152,7 +147,7 @@ export default function App() {
         setPreviousRun(usablePrev);
         setNowIndex(nIdx);
         setSelectedIndex(nIdx);
-        setCenterData(center);
+        setCenterData({ ...center, fetchedAtMs });
         setLoading(false);
 
         // Stage 2 — default-zoom grid hydrates the map; failure here never
@@ -208,6 +203,27 @@ export default function App() {
     }, PLAY_INTERVAL_MS);
     return () => clearInterval(playIntervalRef.current);
   }, [playing, windowStart, windowEnd, centerData]);
+
+  // HRRR series for this location (null outside CONUS or before the feed loads);
+  // its arrival upgrades the agreement band from run-to-run to real multi-model.
+  const hrrrLocal = useMemo(
+    () => (hrrr?.series && location?.granted ? hrrrSeriesAt(hrrr.series, location.lat, location.lon) : null),
+    [hrrr, location],
+  );
+
+  const agreement = useMemo(
+    () =>
+      centerData
+        ? computeAgreement({
+            timesUTC: centerData.timesUTC,
+            pm25: centerData.pm25,
+            fetchedAtMs: centerData.fetchedAtMs,
+            previousRun,
+            hrrrSeries: hrrrLocal,
+          })
+        : null,
+    [centerData, previousRun, hrrrLocal],
+  );
 
   const verdict = useMemo(
     () => (centerData ? computeVerdict({ pm25: centerData.pm25, nowIndex }) : null),
@@ -354,6 +370,7 @@ export default function App() {
                 onNeedTier={handleNeedTier}
                 playing={playing}
                 frameMs={PLAY_INTERVAL_MS}
+                hrrr={hrrr}
               />
             </Suspense>
           ) : (
@@ -383,6 +400,7 @@ export default function App() {
         timesUTC={centerData.timesUTC}
         currentPM25={centerData.pm25}
         previousRun={previousRun}
+        hrrrSeries={hrrrLocal}
       />
       <FiveDayStrip
         timesUTC={centerData.timesUTC}
