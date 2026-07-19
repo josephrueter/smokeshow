@@ -1,17 +1,25 @@
 import L from 'leaflet';
-import { smokeColorForPM25 } from '../lib/rating.js';
+import { smokeRGBA } from '../lib/rating.js';
 
-// Custom canvas overlay: renders smoke as smoke (a translucent gray -> brown ->
-// near-black gradient blob per grid point) rather than an AQI-rainbow legend,
-// so the basemap stays readable underneath and heavy smoke visibly darkens it.
+// Sample resolution: one field sample per BLOCK px, scaled up with canvas
+// smoothing. Small enough to look continuous, cheap enough for 60fps.
+const BLOCK = 4;
+
+// Continuous smoke field: bilinear interpolation of the PM2.5 grid onto a
+// raster, plus temporal interpolation between two hourly frames (t: 0..1).
+// This is what makes playback read as motion — the plume's gradients slide
+// between what the model says at hour N and hour N+1, instead of 81 dots
+// pulsing in place.
 export class SmokeCanvasLayer extends L.Layer {
   constructor(options) {
     super(options);
-    this._points = [];
+    this._field = null;
   }
 
-  setData(points) {
-    this._points = points;
+  // meta: { lat0, lon0, latStep, lonStep, size }; valuesA/valuesB: flat
+  // Float64Array[size*size] for the two bracketing hours; t: blend 0..1.
+  setField(meta, valuesA, valuesB, t) {
+    this._field = { meta, valuesA, valuesB, t };
     this._redraw();
   }
 
@@ -40,31 +48,85 @@ export class SmokeCanvasLayer extends L.Layer {
     this._redraw();
   }
 
-  _estimateCellPx() {
-    if (this._points.length < 2 || !this._map) return 40;
-    const a = this._points.find((p) => p.i === 0 && p.j === 0) || this._points[0];
-    const b = this._points.find((p) => p.i === 1 && p.j === 0) || this._points[1];
-    const pa = this._map.latLngToContainerPoint([a.lat, a.lon]);
-    const pb = this._map.latLngToContainerPoint([b.lat, b.lon]);
-    return Math.max(20, Math.hypot(pa.x - pb.x, pa.y - pb.y));
-  }
-
   _redraw() {
-    if (!this._canvas || !this._map) return;
-    const ctx = this._canvas.getContext('2d');
-    ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
-    const radius = this._estimateCellPx() * 0.85;
-    for (const p of this._points) {
-      if (p.pm25 == null) continue;
-      const pt = this._map.latLngToContainerPoint([p.lat, p.lon]);
-      const color = smokeColorForPM25(p.pm25);
-      const gradient = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, radius);
-      gradient.addColorStop(0, color);
-      gradient.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
-      ctx.fill();
+    if (!this._canvas || !this._map || !this._field) return;
+    const { meta, valuesA, valuesB, t } = this._field;
+    const { lat0, lon0, latStep, lonStep, size } = meta;
+    const w = this._canvas.width;
+    const h = this._canvas.height;
+    if (!w || !h) return;
+
+    const bw = Math.ceil(w / BLOCK);
+    const bh = Math.ceil(h / BLOCK);
+    // NOTE: named _raster (not _off) — L.Evented defines an internal _off()
+    // method, and shadowing it with a canvas breaks Leaflet's event cleanup.
+    if (!this._raster || this._raster.width !== bw || this._raster.height !== bh) {
+      this._raster = document.createElement('canvas');
+      this._raster.width = bw;
+      this._raster.height = bh;
+      this._rasterCtx = this._raster.getContext('2d');
     }
+
+    // Web Mercator: lon is linear in x, lat depends only on y — one projection
+    // call per row/column instead of per sample.
+    const lats = new Float64Array(bh);
+    const lons = new Float64Array(bw);
+    for (let by = 0; by < bh; by++) {
+      lats[by] = this._map.containerPointToLatLng([0, by * BLOCK + BLOCK / 2]).lat;
+    }
+    for (let bx = 0; bx < bw; bx++) {
+      lons[bx] = this._map.containerPointToLatLng([bx * BLOCK + BLOCK / 2, 0]).lng;
+    }
+
+    const img = this._rasterCtx.createImageData(bw, bh);
+    const data = img.data;
+    const n = size - 1;
+
+    for (let by = 0; by < bh; by++) {
+      const gi = (lats[by] - lat0) / latStep;
+      if (gi < -0.5 || gi > n + 0.5) continue;
+      for (let bx = 0; bx < bw; bx++) {
+        const gj = (lons[bx] - lon0) / lonStep;
+        if (gj < -0.5 || gj > n + 0.5) continue;
+
+        const ci = Math.min(Math.max(gi, 0), n);
+        const cj = Math.min(Math.max(gj, 0), n);
+        const i0 = Math.min(Math.floor(ci), n - 1);
+        const j0 = Math.min(Math.floor(cj), n - 1);
+        const fi = ci - i0;
+        const fj = cj - j0;
+        const k00 = i0 * size + j0;
+        const k10 = k00 + size;
+
+        const a =
+          valuesA[k00] * (1 - fi) * (1 - fj) +
+          valuesA[k00 + 1] * (1 - fi) * fj +
+          valuesA[k10] * fi * (1 - fj) +
+          valuesA[k10 + 1] * fi * fj;
+        const b =
+          valuesB[k00] * (1 - fi) * (1 - fj) +
+          valuesB[k00 + 1] * (1 - fi) * fj +
+          valuesB[k10] * fi * (1 - fj) +
+          valuesB[k10 + 1] * fi * fj;
+        const v = a + (b - a) * t;
+
+        const [r, g, bl, al] = smokeRGBA(v);
+        // Soften the grid's outer boundary so the field doesn't end in a wall.
+        const edge = Math.min(ci, cj, n - ci, n - cj);
+        const fade = Math.min(1, (edge + 0.5) / 1.25);
+
+        const p = (by * bw + bx) * 4;
+        data[p] = r;
+        data[p + 1] = g;
+        data[p + 2] = bl;
+        data[p + 3] = Math.round(al * fade);
+      }
+    }
+
+    this._rasterCtx.putImageData(img, 0, 0);
+    const ctx = this._canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this._raster, 0, 0, w, h);
   }
 }

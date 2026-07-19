@@ -29,7 +29,7 @@ import { getJSON, setJSON } from './lib/storage.js';
 const SmokeMap = lazy(() => import('./components/SmokeMap.jsx'));
 
 const TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const PLAY_INTERVAL_MS = 400;
+const PLAY_INTERVAL_MS = 600; // satellite-loop cadence; the map blends between hours at 60fps
 const PREVIOUS_RUN_KEY = 'previousRun';
 const LOCATION_MATCH_TOLERANCE_DEG = 0.05;
 // Map zoom tiers: grid spacing per tier — same 9x9 point budget, wider net.
@@ -330,6 +330,8 @@ export default function App() {
             selectedIndex={selectedIndex}
             center={location}
             onNeedTier={handleNeedTier}
+            playing={playing}
+            frameMs={PLAY_INTERVAL_MS}
           />
         </Suspense>
       ) : (
