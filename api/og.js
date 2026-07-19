@@ -86,7 +86,7 @@ export default function handler(req) {
       'div',
       { display: 'flex', alignItems: 'baseline', gap: 20 },
       h('div', { fontSize: 34, fontWeight: 800, letterSpacing: 2 }, 'SMOKESHOW'),
-      h('div', { fontSize: 24, color: '#b8ada0' }, 'smokeshow-beta.vercel.app'),
+      h('div', { fontSize: 24, color: '#b8ada0' }, 'smokeshow.earth'),
     ),
   );
 
