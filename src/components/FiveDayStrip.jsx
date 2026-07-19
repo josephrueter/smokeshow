@@ -50,15 +50,27 @@ function DayBox({ day, selected, onSelect }) {
 }
 
 function DayHours({ hours }) {
+  const [pickedIdx, setPickedIdx] = useState(null);
   const scaleMax = Math.max(35, ...hours.map((h) => h.v ?? 0));
+  const picked = pickedIdx != null ? hours.find((h) => h.i === pickedIdx) : null;
   return (
     <div className="day-detail__chart">
+      <div className="day-detail__readout">
+        {picked
+          ? `${picked.label} — ${picked.v == null ? 'no data' : `${Math.round(picked.v)} µg/m³`}`
+          : 'Tap a bar for the hour’s number'}
+      </div>
       <div className="day-detail__bars">
         {hours.map((h) => (
-          <div
+          <button
+            type="button"
             key={h.i}
-            className="day-detail__bar-slot"
-            title={`${h.label}: ${h.v == null ? 'no data' : Math.round(h.v) + ' µg/m³'}`}
+            className={
+              'day-detail__bar-slot' +
+              (pickedIdx === h.i ? ' day-detail__bar-slot--picked' : '')
+            }
+            onClick={() => setPickedIdx((cur) => (cur === h.i ? null : h.i))}
+            aria-label={`${h.label}: ${h.v == null ? 'no data' : Math.round(h.v) + ' µg/m³'}`}
           >
             <div
               className="day-detail__bar"
@@ -67,7 +79,7 @@ function DayHours({ hours }) {
                 background: bucketForPM25(h.v)?.color ?? 'transparent',
               }}
             />
-          </div>
+          </button>
         ))}
       </div>
       <div className="day-detail__hour-labels">
@@ -118,12 +130,14 @@ function DayDetail({ day, hours }) {
 
 export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
   const [showPast, setShowPast] = useState(false);
-  const [selectedKey, setSelectedKey] = useState(null);
+  // undefined = untouched (default to today's panel open); null = user closed it
+  const [selectedKey, setSelectedKey] = useState(undefined);
 
   const days = buildDaySummaries({ timesUTC, pm25, nowIndex, timezone });
   const pastDays = buildPastDaySummaries({ timesUTC, pm25, nowIndex, timezone });
+  const effectiveKey = selectedKey === undefined ? days[0]?.key : selectedKey;
   const selectedDay =
-    [...pastDays, ...days].find((d) => d.key === selectedKey) ?? null;
+    [...pastDays, ...days].find((d) => d.key === effectiveKey) ?? null;
 
   // Hourly series for the selected local day — feeds the bar chart.
   let selectedHours = [];
@@ -143,7 +157,7 @@ export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
   }
 
   function toggleSelect(key) {
-    setSelectedKey((cur) => (cur === key ? null : key));
+    setSelectedKey(effectiveKey === key ? null : key);
   }
 
   return (
@@ -166,7 +180,7 @@ export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
             <DayBox
               key={day.key}
               day={day}
-              selected={selectedKey === day.key}
+              selected={effectiveKey === day.key}
               onSelect={() => toggleSelect(day.key)}
             />
           ))}
@@ -176,13 +190,13 @@ export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
             <DayBox
               key={day.key}
               day={day}
-              selected={selectedKey === day.key}
+              selected={effectiveKey === day.key}
               onSelect={() => toggleSelect(day.key)}
             />
           ))}
         </div>
       </div>
-      {selectedDay && <DayDetail day={selectedDay} hours={selectedHours} />}
+      {selectedDay && <DayDetail key={selectedDay.key} day={selectedDay} hours={selectedHours} />}
     </div>
   );
 }
