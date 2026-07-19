@@ -565,6 +565,38 @@ body {
   margin: 0 0 0.4rem;
 }
 
+.day-detail__chart {
+  margin: 0.5rem 0 0.7rem;
+}
+
+.day-detail__bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 52px;
+}
+
+.day-detail__bar-slot {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.day-detail__bar {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  min-height: 3px;
+}
+
+.day-detail__hour-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 0.2rem;
+}
+
 .day-detail__notice {
   margin: 0 0 0.4rem;
   color: var(--text-dim);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { buildDaySummaries, buildPastDaySummaries } from '../lib/days.js';
+import { buildDaySummaries, buildPastDaySummaries, bucketForPM25 } from '../lib/days.js';
 import { levelForPM25 } from '../lib/rating.js';
 
 // Cigarette equivalence only surfaces at "Tastes like fire" and above (brief rule).
@@ -49,17 +49,55 @@ function DayBox({ day, selected, onSelect }) {
   );
 }
 
-function DayDetail({ day }) {
+function DayHours({ hours }) {
+  const scaleMax = Math.max(35, ...hours.map((h) => h.v ?? 0));
+  return (
+    <div className="day-detail__chart">
+      <div className="day-detail__bars">
+        {hours.map((h) => (
+          <div
+            key={h.i}
+            className="day-detail__bar-slot"
+            title={`${h.label}: ${h.v == null ? 'no data' : Math.round(h.v) + ' µg/m³'}`}
+          >
+            <div
+              className="day-detail__bar"
+              style={{
+                height: `${Math.max(3, ((h.v ?? 0) / scaleMax) * 48)}px`,
+                background: bucketForPM25(h.v)?.color ?? 'transparent',
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="day-detail__hour-labels">
+        <span>12a</span>
+        <span>6a</span>
+        <span>12p</span>
+        <span>6p</span>
+        <span>11p</span>
+      </div>
+    </div>
+  );
+}
+
+function DayDetail({ day, hours }) {
   const peakLevel = levelForPM25(day.max);
   if (!peakLevel) return null;
+  const peakHour = hours.reduce(
+    (best, h) => (h.v != null && (best == null || h.v > best.v) ? h : best),
+    null,
+  );
   return (
     <div className="day-detail">
       <p className="day-detail__headline">
         {day.weekday}
         {day.isPast ? ' (past, model estimate)' : ''}: {Math.round(day.min ?? day.max)}–
         {Math.round(day.max)} µg/m³ PM2.5 — peak{day.isPast ? 'ed' : 's'} at{' '}
-        <strong>{peakLevel.name}</strong>.
+        <strong>{peakLevel.name}</strong>
+        {peakHour ? ` around ${peakHour.label}` : ''}.
       </p>
+      <DayHours hours={hours} />
       <p className="day-detail__notice">{peakLevel.notice}</p>
       {day.max >= CIG_THRESHOLD && peakLevel.key === 'smokeshow' && (
         <p className="day-detail__notice">
@@ -67,10 +105,12 @@ function DayDetail({ day }) {
         </p>
       )}
       <p className="day-detail__what">
-        Why these numbers matter: PM2.5 is smoke and soot smaller than 2.5 microns — small enough
-        to slip past your nose and throat and settle deep in your lungs. The number is micrograms
-        of it per cubic meter of air. Under 12 is clean air. Around 35, most people start to smell
-        smoke. Above 150, everyone belongs inside.
+        <strong>What the number means:</strong> PM2.5 is the fine dust in smoke — particles
+        smaller than 2.5 millionths of a meter, so small they slip past your nose and throat and
+        settle deep in your lungs. The µg/m³ number counts how much of that dust each cubic meter
+        of air is carrying — micrograms, millionths of a gram. As rules of thumb: under 12 is
+        normal clean air, around 35 most noses start noticing smoke, and above 150 everyone
+        belongs indoors.
       </p>
     </div>
   );
@@ -84,6 +124,23 @@ export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
   const pastDays = buildPastDaySummaries({ timesUTC, pm25, nowIndex, timezone });
   const selectedDay =
     [...pastDays, ...days].find((d) => d.key === selectedKey) ?? null;
+
+  // Hourly series for the selected local day — feeds the bar chart.
+  let selectedHours = [];
+  if (selectedDay) {
+    const keyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: timezone });
+    const labelFmt = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      hour12: true,
+      timeZone: timezone,
+    });
+    for (let i = 0; i < timesUTC.length; i++) {
+      const d = new Date(timesUTC[i] + 'Z');
+      if (keyFmt.format(d) === selectedDay.key) {
+        selectedHours.push({ i, label: labelFmt.format(d), v: pm25[i] });
+      }
+    }
+  }
 
   function toggleSelect(key) {
     setSelectedKey((cur) => (cur === key ? null : key));
@@ -125,7 +182,7 @@ export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
           ))}
         </div>
       </div>
-      {selectedDay && <DayDetail day={selectedDay} />}
+      {selectedDay && <DayDetail day={selectedDay} hours={selectedHours} />}
     </div>
   );
 }
