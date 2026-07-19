@@ -7,8 +7,6 @@ import Scrubber from './components/Scrubber.jsx';
 import AgreementBand from './components/AgreementBand.jsx';
 import FiveDayStrip from './components/FiveDayStrip.jsx';
 import ForecastText from './components/ForecastText.jsx';
-import Explainer from './components/Explainer.jsx';
-import Disclaimer from './components/Disclaimer.jsx';
 import SharedBanner from './components/SharedBanner.jsx';
 import ShareButton from './components/ShareButton.jsx';
 
@@ -282,11 +280,10 @@ export default function App() {
     return (
       <div className="app">
         <header className="app-header">
-          <span className="app-header__wordmark">SMOKESHOW</span>
+          <h1 className="app-header__wordmark">SMOKESHOW</h1>
           <span className="app-header__tagline">smoky where you are?</span>
         </header>
         <LocationSearch onSelect={handleManualSelect} />
-        <Disclaimer />
       </div>
     );
   }
@@ -313,7 +310,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <span className="app-header__wordmark">SMOKESHOW</span>
+        <h1 className="app-header__wordmark">SMOKESHOW</h1>
         <span className="app-header__tagline">smoky where you are?</span>
       </header>
       {isShared ? (
@@ -384,8 +381,6 @@ export default function App() {
         timezone={TIMEZONE}
       />
       <ForecastText text={forecastText} />
-      <Explainer />
-      <Disclaimer />
     </div>
   );
 }

@@ -4,7 +4,8 @@ import { computeVerdict, verdictHeadline } from '../src/lib/verdict.js';
 export const config = { runtime: 'edge' };
 
 const FALLBACK_TITLE = 'SMOKESHOW';
-const FALLBACK_DESC = 'See the smoke coming, and when it clears.';
+const FALLBACK_DESC =
+  "Live wildfire smoke forecast for your location. See the smoke in the air right now, where it's coming from, and when it clears — in plain language.";
 
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -93,7 +94,9 @@ export default async function handler(req) {
     try {
       const v = await buildVerdictStrings(lat, lon);
       title = name ? `${name} — ${v.levelName}` : v.levelName;
-      desc = `${v.headline} · SMOKESHOW`;
+      // Live verdict in the SERP/preview description — when a search engine
+      // or messenger shows this instead of rewriting it, it's unbeatable.
+      desc = `${name ? `${name}: ` : ''}${v.levelName}. ${v.headline}. Live wildfire smoke map and 5-day forecast.`;
       const imgParams = new URLSearchParams({
         rating: v.levelName,
         key: v.levelKey,
@@ -112,6 +115,7 @@ export default async function handler(req) {
 <head>
 <meta charset="utf-8">
 <title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(desc)}">
 ${ogImage ? `<meta property="og:image" content="${esc(ogImage)}">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n<meta name="twitter:card" content="summary_large_image">` : `<meta name="twitter:card" content="summary">`}
