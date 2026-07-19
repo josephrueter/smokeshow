@@ -247,6 +247,23 @@ body {
   font-size: 0.9rem;
 }
 
+/* Lake scene illustration */
+.lake-scene {
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  line-height: 0;
+}
+
+.lake-scene svg {
+  width: 100%;
+  height: auto;
+}
+
+.lake-scene__layer {
+  transition: opacity 0.35s ease;
+}
+
 /* Map */
 .smoke-map {
   width: 100%;

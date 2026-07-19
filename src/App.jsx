@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import LocationBanner from './components/LocationBanner.jsx';
 import LocationSearch from './components/LocationSearch.jsx';
 import RatingChip from './components/RatingChip.jsx';
+import LakeScene from './components/LakeScene.jsx';
 import Scrubber from './components/Scrubber.jsx';
 import AgreementBand from './components/AgreementBand.jsx';
 import FiveDayStrip from './components/FiveDayStrip.jsx';
@@ -13,7 +14,7 @@ import ShareButton from './components/ShareButton.jsx';
 
 import { requestLocation, setManualLocation, clearLocation } from './lib/geolocation.js';
 import { reverseGeocode } from './lib/geocoding.js';
-import { buildGrid } from './lib/grid.js';
+import { buildGrid, snapCoord } from './lib/grid.js';
 import { fetchGridPM25, findNowIndex } from './lib/openMeteo.js';
 import { computeAgreement } from './lib/agreement.js';
 import { buildForecastText } from './lib/forecastText.js';
@@ -34,6 +35,9 @@ const PREVIOUS_RUN_KEY = 'previousRun';
 const LOCATION_MATCH_TOLERANCE_DEG = 0.05;
 // Map zoom tiers: grid spacing per tier — same 9x9 point budget, wider net.
 const TIER_SPACING_KM = { 1: 25, 2: 75, 3: 200 };
+// Snap grid centers to a lattice per tier so nearby users share the edge
+// cache (api/aq.js). Coarser tiers snap coarser — the cells are bigger.
+const TIER_SNAP_DEG = { 1: 0.1, 2: 0.25, 3: 0.25 };
 
 function parseSharedParams() {
   const params = new URLSearchParams(window.location.search);
@@ -111,7 +115,10 @@ export default function App() {
 
       try {
         const fetchedAtMs = Date.now();
-        const points = buildGrid(location.lat, location.lon);
+        const points = buildGrid(
+          snapCoord(location.lat, TIER_SNAP_DEG[1]),
+          snapCoord(location.lon, TIER_SNAP_DEG[1]),
+        );
         const centerPoint = points.find((p) => p.isCenter);
 
         // Stage 1 — one point, fast: verdict paints before the map exists.
@@ -180,7 +187,11 @@ export default function App() {
       fetchingTiersRef.current.add(tier);
       try {
         const grid = await fetchGridPM25(
-          buildGrid(location.lat, location.lon, { spacingKm: TIER_SPACING_KM[tier] }),
+          buildGrid(
+            snapCoord(location.lat, TIER_SNAP_DEG[tier]),
+            snapCoord(location.lon, TIER_SNAP_DEG[tier]),
+            { spacingKm: TIER_SPACING_KM[tier] },
+          ),
         );
         setGridTiers((prev) => ({ ...prev, [tier]: grid }));
       } catch {
@@ -321,6 +332,7 @@ export default function App() {
         timeLabel={formatLocalTime(centerData.timesUTC[selectedIndex], TIMEZONE)}
         headline={selectedIndex === nowIndex ? headline : null}
       />
+      <LakeScene pm25={selectedPM25} />
       <ShareButton
         level={nowLevel}
         placeName={placeName}

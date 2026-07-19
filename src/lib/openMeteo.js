@@ -1,4 +1,10 @@
-const AIR_QUALITY_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+// Production routes through /api/aq, an edge proxy that adds CDN cache
+// headers (Open-Meteo sends none) so a traffic spike shares cached responses
+// instead of burning the upstream quota. Dev calls Open-Meteo directly —
+// there's no edge function under the Vite dev server.
+const AIR_QUALITY_URL = import.meta.env?.DEV
+  ? 'https://air-quality-api.open-meteo.com/v1/air-quality'
+  : '/api/aq';
 
 // Fetches hourly PM2.5 for every grid point in one batched request via
 // Open-Meteo's comma-separated multi-coordinate syntax (verified against the

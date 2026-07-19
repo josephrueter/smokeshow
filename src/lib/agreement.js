@@ -34,9 +34,12 @@ export function computeAgreement({ timesUTC, pm25, fetchedAtMs, previousRun }) {
   });
 }
 
+// v1 honesty: with only one model (CAMS), "Models agree" would overclaim —
+// what we actually measure is whether this run moved vs. the previous run.
+// The multi-model labels return when HRRR/BlueSky land in v2.
 export function summarizeAgreement(agreement) {
   const hasDiverge = agreement.some((a) => a.status === 'diverge');
   return hasDiverge
-    ? { label: 'Models split — tap for detail', diverged: true }
-    : { label: 'Models agree', diverged: false };
+    ? { label: 'Forecast shifting between runs — tap for detail', diverged: true }
+    : { label: 'Forecast holding steady', diverged: false };
 }

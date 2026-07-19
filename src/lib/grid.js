@@ -1,5 +1,12 @@
 const KM_PER_DEG_LAT = 110.574;
 
+// Snap a coordinate to a lattice so nearby users generate byte-identical
+// API URLs and share the edge cache (see api/aq.js). 0.1° ≈ 11km — well
+// under CAMS's ~40km resolution, so the forecast itself doesn't change.
+export function snapCoord(value, stepDeg = 0.1) {
+  return Number((Math.round(value / stepDeg) * stepDeg).toFixed(4));
+}
+
 function kmPerDegLon(latDeg) {
   return 111.32 * Math.cos((latDeg * Math.PI) / 180);
 }

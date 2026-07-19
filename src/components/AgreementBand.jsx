@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { summarizeAgreement } from '../lib/agreement.js';
 
 function AgreementCurves({ timesUTC, windowStart, windowEnd, currentPM25, previousRun }) {
   const width = 320;
@@ -63,7 +64,7 @@ export default function AgreementBand({
 }) {
   const [expanded, setExpanded] = useState(false);
   const windowAgreement = agreement.slice(windowStart, windowEnd + 1);
-  const diverged = windowAgreement.some((a) => a.status === 'diverge');
+  const { label, diverged } = summarizeAgreement(windowAgreement);
   const segWidth = 100 / Math.max(1, windowAgreement.length);
 
   return (
@@ -78,7 +79,7 @@ export default function AgreementBand({
         ))}
       </div>
       <button type="button" className="agreement-band__summary" onClick={() => setExpanded((v) => !v)}>
-        {diverged ? 'Models split — tap for detail' : 'Models agree'}
+        {label}
       </button>
       {expanded && (
         <div className="agreement-band__detail">
