@@ -1,0 +1,50 @@
+name: hrrr-smoke
+
+on:
+  schedule:
+    # ~2h40m after each 00/06/12/18Z HRRR cycle (f48 needs the 6-hourly runs)
+    - cron: "40 2,8,14,20 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hrrr
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-name: hrrr
+          create-args: >-
+            python=3.11
+            herbie-data
+            xarray
+            cfgrib
+            eccodes
+            numpy
+            pyproj
+            pillow
+          cache-environment: true
+          init-shell: bash
+
+      - name: Render HRRR smoke frames
+        shell: bash -leo pipefail {0}
+        run: python scripts/hrrr/render_frames.py
+
+      - name: Publish to data branch
+        run: |
+          cd out
+          git init -b data
+          git config user.name "smokeshow-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "hrrr frames $(date -u +%FT%H:%MZ)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" data
