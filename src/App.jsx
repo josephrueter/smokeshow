@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import LocationBanner from './components/LocationBanner.jsx';
 import LocationSearch from './components/LocationSearch.jsx';
 import RatingChip from './components/RatingChip.jsx';
-import SmokeMap from './components/SmokeMap.jsx';
 import Scrubber from './components/Scrubber.jsx';
 import AgreementBand from './components/AgreementBand.jsx';
 import FiveDayStrip from './components/FiveDayStrip.jsx';
 import ForecastText from './components/ForecastText.jsx';
 import Explainer from './components/Explainer.jsx';
 import Disclaimer from './components/Disclaimer.jsx';
+import SharedBanner from './components/SharedBanner.jsx';
+import ShareButton from './components/ShareButton.jsx';
 
 import { requestLocation, setManualLocation, clearLocation } from './lib/geolocation.js';
 import { reverseGeocode } from './lib/geocoding.js';
@@ -16,19 +17,51 @@ import { buildGrid } from './lib/grid.js';
 import { fetchGridPM25, findNowIndex } from './lib/openMeteo.js';
 import { computeAgreement } from './lib/agreement.js';
 import { buildForecastText } from './lib/forecastText.js';
+import { buildDaySummaries } from './lib/days.js';
+import { computeVerdict, verdictHeadline } from './lib/verdict.js';
 import { levelForPM25 } from './lib/rating.js';
-import { formatLocalTime } from './lib/time.js';
+import { formatLocalTime, formatVerdictTime } from './lib/time.js';
 import { getJSON, setJSON } from './lib/storage.js';
+
+// Map (and Leaflet with it) loads as a separate chunk after the verdict paints —
+// share-spec rule: rating chip + clear-time render first from a single point
+// fetch; the 81-point grid and map hydrate behind it.
+const SmokeMap = lazy(() => import('./components/SmokeMap.jsx'));
 
 const TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const PLAY_INTERVAL_MS = 400;
 const PREVIOUS_RUN_KEY = 'previousRun';
 const LOCATION_MATCH_TOLERANCE_DEG = 0.05;
 
+function parseSharedParams() {
+  const params = new URLSearchParams(window.location.search);
+  const lat = Number.parseFloat(params.get('lat'));
+  const lon = Number.parseFloat(params.get('lon'));
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return {
+    granted: true,
+    lat,
+    lon,
+    label: params.get('name') || null,
+    source: 'shared',
+    fromShare: params.get('utm_source') === 'share',
+  };
+}
+
+function writeLocationToURL(lat, lon, name) {
+  const params = new URLSearchParams();
+  params.set('lat', lat.toFixed(3));
+  params.set('lon', lon.toFixed(3));
+  if (name) params.set('name', name);
+  window.history.replaceState(null, '', `/?${params.toString()}`);
+}
+
 export default function App() {
   const [location, setLocation] = useState(null);
   const [placeName, setPlaceName] = useState(null);
-  const [gridData, setGridData] = useState(null);
+  const [centerData, setCenterData] = useState(null); // stage 1: single point — paints the verdict
+  const [gridData, setGridData] = useState(null); // stage 2: full grid — hydrates the map
+  const [gridFailed, setGridFailed] = useState(false);
   const [previousRun, setPreviousRun] = useState(null);
   const [agreement, setAgreement] = useState(null);
   const [nowIndex, setNowIndex] = useState(0);
@@ -39,7 +72,9 @@ export default function App() {
   const playIntervalRef = useRef(null);
 
   useEffect(() => {
-    requestLocation().then(setLocation);
+    const shared = parseSharedParams();
+    if (shared) setLocation(shared);
+    else requestLocation().then(setLocation);
   }, []);
 
   useEffect(() => {
@@ -52,22 +87,33 @@ export default function App() {
     (async () => {
       setLoading(true);
       setError(null);
+      setCenterData(null);
+      setGridData(null);
+      setGridFailed(false);
 
       if (location.label) {
         setPlaceName(location.label);
       } else {
         reverseGeocode(location.lat, location.lon).then((name) => {
-          if (!cancelled) setPlaceName(name || `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`);
+          if (cancelled) return;
+          const resolved = name || `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`;
+          setPlaceName(resolved);
+          if (location.source !== 'shared') writeLocationToURL(location.lat, location.lon, name);
         });
+      }
+      if (location.source === 'manual') {
+        writeLocationToURL(location.lat, location.lon, location.label);
       }
 
       try {
-        const points = buildGrid(location.lat, location.lon);
         const fetchedAtMs = Date.now();
-        const grid = await fetchGridPM25(points);
+        const points = buildGrid(location.lat, location.lon);
+        const centerPoint = points.find((p) => p.isCenter);
+
+        // Stage 1 — one point, fast: verdict paints before the map exists.
+        const [center] = await fetchGridPM25([centerPoint]);
         if (cancelled) return;
 
-        const center = grid.find((p) => p.isCenter);
         const cachedPrev = getJSON(PREVIOUS_RUN_KEY);
         const usablePrev =
           cachedPrev &&
@@ -76,13 +122,14 @@ export default function App() {
             ? cachedPrev
             : null;
 
-        const hourlyAgreement = computeAgreement({
-          timesUTC: center.timesUTC,
-          pm25: center.pm25,
-          fetchedAtMs,
-          previousRun: usablePrev,
-        });
-
+        setAgreement(
+          computeAgreement({
+            timesUTC: center.timesUTC,
+            pm25: center.pm25,
+            fetchedAtMs,
+            previousRun: usablePrev,
+          }),
+        );
         setJSON(PREVIOUS_RUN_KEY, {
           lat: location.lat,
           lon: location.lon,
@@ -92,16 +139,24 @@ export default function App() {
         });
 
         const nIdx = findNowIndex(center.timesUTC);
-
-        setGridData(grid);
         setPreviousRun(usablePrev);
-        setAgreement(hourlyAgreement);
         setNowIndex(nIdx);
         setSelectedIndex(nIdx);
+        setCenterData(center);
+        setLoading(false);
+
+        // Stage 2 — full grid hydrates the map; failure here never takes down the verdict.
+        try {
+          const grid = await fetchGridPM25(points);
+          if (!cancelled) setGridData(grid);
+        } catch {
+          if (!cancelled) setGridFailed(true);
+        }
       } catch (e) {
-        if (!cancelled) setError('Could not load the forecast. Check your connection and try again.');
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setError('Could not load the forecast. Check your connection and try again.');
+          setLoading(false);
+        }
       }
     })();
 
@@ -110,35 +165,71 @@ export default function App() {
     };
   }, [location]);
 
-  const center = gridData?.find((p) => p.isCenter) ?? null;
   const windowStart = Math.max(0, nowIndex - 12);
-  const windowEnd = center ? Math.min(center.timesUTC.length - 1, nowIndex + 48) : 0;
+  const windowEnd = centerData ? Math.min(centerData.timesUTC.length - 1, nowIndex + 48) : 0;
 
   useEffect(() => {
     clearInterval(playIntervalRef.current);
-    if (!playing || !center) return;
+    if (!playing || !centerData) return;
     playIntervalRef.current = setInterval(() => {
       setSelectedIndex((idx) => (idx >= windowEnd ? windowStart : idx + 1));
     }, PLAY_INTERVAL_MS);
     return () => clearInterval(playIntervalRef.current);
-  }, [playing, windowStart, windowEnd, center]);
+  }, [playing, windowStart, windowEnd, centerData]);
 
+  const verdict = useMemo(
+    () => (centerData ? computeVerdict({ pm25: centerData.pm25, nowIndex }) : null),
+    [centerData, nowIndex],
+  );
+  const headline = useMemo(
+    () =>
+      verdict && centerData
+        ? verdictHeadline(verdict, (i) => formatVerdictTime(centerData.timesUTC[i], TIMEZONE))
+        : null,
+    [verdict, centerData],
+  );
+  const days = useMemo(
+    () =>
+      centerData
+        ? buildDaySummaries({
+            timesUTC: centerData.timesUTC,
+            pm25: centerData.pm25,
+            nowIndex,
+            timezone: TIMEZONE,
+          })
+        : [],
+    [centerData, nowIndex],
+  );
   const forecastText = useMemo(() => {
-    if (!center) return '';
+    if (!centerData) return '';
     return buildForecastText({
-      timesUTC: center.timesUTC,
-      pm25: center.pm25,
+      timesUTC: centerData.timesUTC,
+      pm25: centerData.pm25,
       nowIndex,
       timezone: TIMEZONE,
     });
-  }, [center, nowIndex]);
+  }, [centerData, nowIndex]);
 
   async function handleUpdateLocation() {
     setPlaying(false);
     clearLocation();
     setLocation(null);
+    setPlaceName(null);
     const loc = await requestLocation();
     setLocation(loc);
+  }
+
+  // The viewer→user conversion moment: shared-link recipient claims their own air.
+  async function handleCheckYourAir() {
+    setPlaying(false);
+    const loc = await requestLocation();
+    if (loc.granted) {
+      setPlaceName(null);
+      setLocation(loc);
+    } else {
+      clearLocation();
+      setLocation(loc); // denied → search box path
+    }
   }
 
   function handleManualSelect(result) {
@@ -146,7 +237,7 @@ export default function App() {
     setLocation(loc);
   }
 
-  if (!location || (loading && !gridData)) {
+  if (!location || (loading && !centerData)) {
     return (
       <div className="app app--loading">
         <p>{!location ? 'Requesting your location…' : 'Loading the forecast…'}</p>
@@ -164,7 +255,7 @@ export default function App() {
     );
   }
 
-  if (error || !center) {
+  if (error || !centerData) {
     return (
       <div className="app app--error">
         <p>{error || 'Something went wrong loading the forecast.'}</p>
@@ -175,21 +266,52 @@ export default function App() {
     );
   }
 
-  const selectedPM25 = center.pm25[selectedIndex];
+  const selectedPM25 = centerData.pm25[selectedIndex];
   const selectedLevel = levelForPM25(selectedPM25);
+  const nowLevel = levelForPM25(centerData.pm25[nowIndex]);
+  const isShared = location.source === 'shared';
+  const shareUrl =
+    `${window.location.origin}/s?lat=${location.lat.toFixed(3)}&lon=${location.lon.toFixed(3)}` +
+    `${placeName ? `&name=${encodeURIComponent(placeName)}` : ''}&utm_source=share`;
 
   return (
     <div className="app">
-      <LocationBanner placeName={placeName} onUpdateLocation={handleUpdateLocation} />
+      {isShared ? (
+        <SharedBanner
+          placeName={placeName || 'a shared location'}
+          fromShare={location.fromShare}
+          onCheckYourAir={handleCheckYourAir}
+        />
+      ) : (
+        <LocationBanner placeName={placeName} onUpdateLocation={handleUpdateLocation} />
+      )}
       <RatingChip
         level={selectedLevel}
         pm25={selectedPM25}
         isNow={selectedIndex === nowIndex}
-        timeLabel={formatLocalTime(center.timesUTC[selectedIndex], TIMEZONE)}
+        timeLabel={formatLocalTime(centerData.timesUTC[selectedIndex], TIMEZONE)}
+        headline={selectedIndex === nowIndex ? headline : null}
       />
-      <SmokeMap gridData={gridData} selectedIndex={selectedIndex} center={location} />
+      <ShareButton
+        level={nowLevel}
+        placeName={placeName}
+        timeLabel={formatLocalTime(centerData.timesUTC[nowIndex], TIMEZONE)}
+        headline={headline}
+        days={days}
+        diverged={agreement?.some((a) => a.status === 'diverge') ?? false}
+        shareUrl={shareUrl}
+      />
+      {gridData ? (
+        <Suspense fallback={<div className="map-placeholder">Loading map…</div>}>
+          <SmokeMap gridData={gridData} selectedIndex={selectedIndex} center={location} />
+        </Suspense>
+      ) : (
+        <div className="map-placeholder">
+          {gridFailed ? 'Map unavailable right now — the forecast above still works.' : 'Loading map…'}
+        </div>
+      )}
       <Scrubber
-        timesUTC={center.timesUTC}
+        timesUTC={centerData.timesUTC}
         windowStart={windowStart}
         windowEnd={windowEnd}
         selectedIndex={selectedIndex}
@@ -203,13 +325,13 @@ export default function App() {
         agreement={agreement}
         windowStart={windowStart}
         windowEnd={windowEnd}
-        timesUTC={center.timesUTC}
-        currentPM25={center.pm25}
+        timesUTC={centerData.timesUTC}
+        currentPM25={centerData.pm25}
         previousRun={previousRun}
       />
       <FiveDayStrip
-        timesUTC={center.timesUTC}
-        pm25={center.pm25}
+        timesUTC={centerData.timesUTC}
+        pm25={centerData.pm25}
         nowIndex={nowIndex}
         timezone={TIMEZONE}
       />
