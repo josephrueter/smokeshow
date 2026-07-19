@@ -270,7 +270,10 @@ export default function App() {
   if (!location.granted) {
     return (
       <div className="app">
-        <h1 className="app__title">SMOKESHOW</h1>
+        <header className="app-header">
+          <span className="app-header__wordmark">SMOKESHOW</span>
+          <span className="app-header__tagline">smoky where you are?</span>
+        </header>
         <LocationSearch onSelect={handleManualSelect} />
         <Disclaimer />
       </div>
@@ -298,6 +301,10 @@ export default function App() {
 
   return (
     <div className="app">
+      <header className="app-header">
+        <span className="app-header__wordmark">SMOKESHOW</span>
+        <span className="app-header__tagline">smoky where you are?</span>
+      </header>
       {isShared ? (
         <SharedBanner
           placeName={placeName || 'a shared location'}
