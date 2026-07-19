@@ -13,7 +13,7 @@ export const LEVELS = [
   {
     index: 1,
     key: 'something',
-    name: "Something's in the air",
+    name: 'In the air',
     max: 35,
     visibility: '5–10 miles',
     notice:

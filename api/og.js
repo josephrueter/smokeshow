@@ -12,7 +12,7 @@ const LEVEL_ACCENTS = {
 
 const LEVEL_NAMES = [
   'All clear',
-  "Something's in the air",
+  'In the air',
   'Smells like fire',
   'Tastes like fire',
   'Smokeshow',

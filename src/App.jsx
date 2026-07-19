@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import LocationBanner from './components/LocationBanner.jsx';
 import LocationSearch from './components/LocationSearch.jsx';
 import RatingChip from './components/RatingChip.jsx';
@@ -32,6 +32,8 @@ const TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const PLAY_INTERVAL_MS = 400;
 const PREVIOUS_RUN_KEY = 'previousRun';
 const LOCATION_MATCH_TOLERANCE_DEG = 0.05;
+// Map zoom tiers: grid spacing per tier — same 9x9 point budget, wider net.
+const TIER_SPACING_KM = { 1: 25, 2: 75, 3: 200 };
 
 function parseSharedParams() {
   const params = new URLSearchParams(window.location.search);
@@ -60,8 +62,9 @@ export default function App() {
   const [location, setLocation] = useState(null);
   const [placeName, setPlaceName] = useState(null);
   const [centerData, setCenterData] = useState(null); // stage 1: single point — paints the verdict
-  const [gridData, setGridData] = useState(null); // stage 2: full grid — hydrates the map
+  const [gridTiers, setGridTiers] = useState({}); // stage 2+: per-zoom-tier grids — hydrate the map
   const [gridFailed, setGridFailed] = useState(false);
+  const fetchingTiersRef = useRef(new Set());
   const [previousRun, setPreviousRun] = useState(null);
   const [agreement, setAgreement] = useState(null);
   const [nowIndex, setNowIndex] = useState(0);
@@ -88,7 +91,8 @@ export default function App() {
       setLoading(true);
       setError(null);
       setCenterData(null);
-      setGridData(null);
+      setGridTiers({});
+      fetchingTiersRef.current.clear();
       setGridFailed(false);
 
       if (location.label) {
@@ -145,10 +149,11 @@ export default function App() {
         setCenterData(center);
         setLoading(false);
 
-        // Stage 2 — full grid hydrates the map; failure here never takes down the verdict.
+        // Stage 2 — default-zoom grid hydrates the map; failure here never
+        // takes down the verdict. Wider tiers fetch lazily on zoom-out.
         try {
           const grid = await fetchGridPM25(points);
-          if (!cancelled) setGridData(grid);
+          if (!cancelled) setGridTiers({ 1: grid });
         } catch {
           if (!cancelled) setGridFailed(true);
         }
@@ -167,6 +172,23 @@ export default function App() {
 
   const windowStart = Math.max(0, nowIndex - 12);
   const windowEnd = centerData ? Math.min(centerData.timesUTC.length - 1, nowIndex + 48) : 0;
+
+  const handleNeedTier = useCallback(
+    async (tier) => {
+      if (!location?.granted || !TIER_SPACING_KM[tier]) return;
+      if (fetchingTiersRef.current.has(tier)) return;
+      fetchingTiersRef.current.add(tier);
+      try {
+        const grid = await fetchGridPM25(
+          buildGrid(location.lat, location.lon, { spacingKm: TIER_SPACING_KM[tier] }),
+        );
+        setGridTiers((prev) => ({ ...prev, [tier]: grid }));
+      } catch {
+        fetchingTiersRef.current.delete(tier); // allow a retry on the next zoom event
+      }
+    },
+    [location],
+  );
 
   useEffect(() => {
     clearInterval(playIntervalRef.current);
@@ -301,9 +323,14 @@ export default function App() {
         diverged={agreement?.some((a) => a.status === 'diverge') ?? false}
         shareUrl={shareUrl}
       />
-      {gridData ? (
+      {gridTiers[1] ? (
         <Suspense fallback={<div className="map-placeholder">Loading map…</div>}>
-          <SmokeMap gridData={gridData} selectedIndex={selectedIndex} center={location} />
+          <SmokeMap
+            gridTiers={gridTiers}
+            selectedIndex={selectedIndex}
+            center={location}
+            onNeedTier={handleNeedTier}
+          />
         </Suspense>
       ) : (
         <div className="map-placeholder">

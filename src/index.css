@@ -456,6 +456,18 @@ body {
   margin-top: 0.2rem;
 }
 
+.five-day-strip__parts {
+  display: flex;
+  gap: 3px;
+  margin-top: 0.45rem;
+}
+
+.five-day-strip__part {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+}
+
 /* Forecast text */
 .forecast-text {
   background: var(--bg-panel);
