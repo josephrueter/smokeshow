@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import LocationBanner from './components/LocationBanner.jsx';
 import LocationSearch from './components/LocationSearch.jsx';
 import RatingChip from './components/RatingChip.jsx';
@@ -301,6 +302,9 @@ export default function App() {
 
   const selectedPM25 = centerData.pm25[selectedIndex];
   const selectedLevel = levelForPM25(selectedPM25);
+  // Static slot in index.html between the FAQ and the explainer — the map
+  // renders down there (portal) while its state stays wired up here.
+  const mapSlot = document.getElementById('map-slot');
   const nowLevel = levelForPM25(centerData.pm25[nowIndex]);
   const isShared = location.source === 'shared';
   const shareUrl =
@@ -339,22 +343,28 @@ export default function App() {
         diverged={agreement?.some((a) => a.status === 'diverge') ?? false}
         shareUrl={shareUrl}
       />
-      {gridTiers[1] ? (
-        <Suspense fallback={<div className="map-placeholder">Loading map…</div>}>
-          <SmokeMap
-            gridTiers={gridTiers}
-            selectedIndex={selectedIndex}
-            center={location}
-            onNeedTier={handleNeedTier}
-            playing={playing}
-            frameMs={PLAY_INTERVAL_MS}
-          />
-        </Suspense>
-      ) : (
-        <div className="map-placeholder">
-          {gridFailed ? 'Map unavailable right now — the forecast above still works.' : 'Loading map…'}
-        </div>
-      )}
+      {mapSlot &&
+        createPortal(
+          gridTiers[1] ? (
+            <Suspense fallback={<div className="map-placeholder">Loading map…</div>}>
+              <SmokeMap
+                gridTiers={gridTiers}
+                selectedIndex={selectedIndex}
+                center={location}
+                onNeedTier={handleNeedTier}
+                playing={playing}
+                frameMs={PLAY_INTERVAL_MS}
+              />
+            </Suspense>
+          ) : (
+            <div className="map-placeholder">
+              {gridFailed
+                ? 'Map unavailable right now — the forecast above still works.'
+                : 'Loading map…'}
+            </div>
+          ),
+          mapSlot,
+        )}
       <Scrubber
         timesUTC={centerData.timesUTC}
         windowStart={windowStart}

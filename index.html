@@ -30,7 +30,7 @@
           smelling wildfire smoke that traveled — often hundreds or thousands of miles. Wind
           carries smoke from large wildfires across entire regions, so the air can smell like a
           campfire even when the nearest fire is in another state or another country. The map
-          above shows the smoke over your location right now and where it's headed.
+          below shows the smoke over your location right now and where it's headed.
         </p>
 
         <h3>Where is the smoke coming from?</h3>
@@ -83,6 +83,10 @@
         </p>
       </section>
 
+      <!-- React portals the live smoke map here (see App.jsx) — placed just
+           above the explainer per layout; FAQ copy references "the map below". -->
+      <div id="map-slot"></div>
+
       <div class="explainer">
         <h2>Why is smoke so hard to forecast?</h2>
         <p>Forecasting smoke is like forecasting weather — with three extra problems stacked on top.</p>
@@ -134,7 +138,7 @@
             "name": "Why does it smell like smoke outside today?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "If it smells like smoke outside and there's no fire nearby, you're almost certainly smelling wildfire smoke that traveled — often hundreds or thousands of miles. Wind carries smoke from large wildfires across entire regions, so the air can smell like a campfire even when the nearest fire is in another state or another country. The map above shows the smoke over your location right now and where it's headed."
+              "text": "If it smells like smoke outside and there's no fire nearby, you're almost certainly smelling wildfire smoke that traveled — often hundreds or thousands of miles. Wind carries smoke from large wildfires across entire regions, so the air can smell like a campfire even when the nearest fire is in another state or another country. The map below shows the smoke over your location right now and where it's headed."
             }
           },
           {
