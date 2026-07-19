@@ -17,6 +17,7 @@ import { buildGrid, snapCoord } from './lib/grid.js';
 import { fetchGridPM25, findNowIndex } from './lib/openMeteo.js';
 import { computeAgreement } from './lib/agreement.js';
 import { fetchHRRR, hrrrSeriesAt } from './lib/hrrr.js';
+import { fetchSensorsNear, applySensorAnchor } from './lib/sensors.js';
 import { buildForecastText } from './lib/forecastText.js';
 import { buildDaySummaries } from './lib/days.js';
 import { computeVerdict, verdictHeadline } from './lib/verdict.js';
@@ -71,6 +72,7 @@ export default function App() {
   const fetchingTiersRef = useRef(new Set());
   const [previousRun, setPreviousRun] = useState(null);
   const [hrrr, setHrrr] = useState(null);
+  const [sensorNow, setSensorNow] = useState(null);
   const [nowIndex, setNowIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -114,6 +116,12 @@ export default function App() {
       if (location.source === 'manual') {
         writeLocationToURL(location.lat, location.lon, location.label);
       }
+
+      // Measured truth anchor — additive; null keeps the app model-only.
+      setSensorNow(null);
+      fetchSensorsNear(location.lat, location.lon).then((s) => {
+        if (!cancelled) setSensorNow(s);
+      });
 
       try {
         const fetchedAtMs = Date.now();
@@ -225,9 +233,21 @@ export default function App() {
     [centerData, previousRun, hrrrLocal],
   );
 
+  // Experience surfaces (chip, verdict, strip, forecast text) read the
+  // sensor-anchored series; the agreement band and map stay pure model —
+  // comparing models to each other with sensor corrections baked in would
+  // muddy exactly the signal the band exists to show.
+  const anchoredPm25 = useMemo(
+    () =>
+      centerData
+        ? applySensorAnchor(centerData.pm25, nowIndex, sensorNow?.measured ?? null)
+        : null,
+    [centerData, nowIndex, sensorNow],
+  );
+
   const verdict = useMemo(
-    () => (centerData ? computeVerdict({ pm25: centerData.pm25, nowIndex }) : null),
-    [centerData, nowIndex],
+    () => (anchoredPm25 ? computeVerdict({ pm25: anchoredPm25, nowIndex }) : null),
+    [anchoredPm25, nowIndex],
   );
   const headline = useMemo(
     () =>
@@ -238,25 +258,25 @@ export default function App() {
   );
   const days = useMemo(
     () =>
-      centerData
+      centerData && anchoredPm25
         ? buildDaySummaries({
             timesUTC: centerData.timesUTC,
-            pm25: centerData.pm25,
+            pm25: anchoredPm25,
             nowIndex,
             timezone: TIMEZONE,
           })
         : [],
-    [centerData, nowIndex],
+    [centerData, anchoredPm25, nowIndex],
   );
   const forecastText = useMemo(() => {
-    if (!centerData) return '';
+    if (!centerData || !anchoredPm25) return '';
     return buildForecastText({
       timesUTC: centerData.timesUTC,
-      pm25: centerData.pm25,
+      pm25: anchoredPm25,
       nowIndex,
       timezone: TIMEZONE,
     });
-  }, [centerData, nowIndex]);
+  }, [centerData, anchoredPm25, nowIndex]);
 
   async function handleUpdateLocation() {
     setPlaying(false);
@@ -316,12 +336,12 @@ export default function App() {
     );
   }
 
-  const selectedPM25 = centerData.pm25[selectedIndex];
+  const selectedPM25 = anchoredPm25[selectedIndex];
   const selectedLevel = levelForPM25(selectedPM25);
   // Static slot in index.html between the FAQ and the explainer — the map
   // renders down there (portal) while its state stays wired up here.
   const mapSlot = document.getElementById('map-slot');
-  const nowLevel = levelForPM25(centerData.pm25[nowIndex]);
+  const nowLevel = levelForPM25(anchoredPm25[nowIndex]);
   const isShared = location.source === 'shared';
   const shareUrl =
     `${window.location.origin}/s?lat=${location.lat.toFixed(3)}&lon=${location.lon.toFixed(3)}` +
@@ -348,6 +368,7 @@ export default function App() {
         isNow={selectedIndex === nowIndex}
         timeLabel={formatLocalTime(centerData.timesUTC[selectedIndex], TIMEZONE)}
         headline={selectedIndex === nowIndex ? headline : null}
+        sensor={selectedIndex === nowIndex ? sensorNow : null}
       />
       <LakeScene pm25={selectedPM25} />
       <ShareButton
@@ -406,7 +427,7 @@ export default function App() {
         )}
       <FiveDayStrip
         timesUTC={centerData.timesUTC}
-        pm25={centerData.pm25}
+        pm25={anchoredPm25}
         nowIndex={nowIndex}
         timezone={TIMEZONE}
       />
