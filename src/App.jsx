@@ -361,47 +361,49 @@ export default function App() {
       />
       {mapSlot &&
         createPortal(
-          gridTiers[1] ? (
-            <Suspense fallback={<div className="map-placeholder">Loading map…</div>}>
-              <SmokeMap
-                gridTiers={gridTiers}
-                selectedIndex={selectedIndex}
-                center={location}
-                onNeedTier={handleNeedTier}
-                playing={playing}
-                frameMs={PLAY_INTERVAL_MS}
-                hrrr={hrrr}
-              />
-            </Suspense>
-          ) : (
-            <div className="map-placeholder">
-              {gridFailed
-                ? 'Map unavailable right now — the forecast above still works.'
-                : 'Loading map…'}
-            </div>
-          ),
+          <div className="map-section">
+            {gridTiers[1] ? (
+              <Suspense fallback={<div className="map-placeholder">Loading map…</div>}>
+                <SmokeMap
+                  gridTiers={gridTiers}
+                  selectedIndex={selectedIndex}
+                  center={location}
+                  onNeedTier={handleNeedTier}
+                  playing={playing}
+                  frameMs={PLAY_INTERVAL_MS}
+                  hrrr={hrrr}
+                />
+              </Suspense>
+            ) : (
+              <div className="map-placeholder">
+                {gridFailed
+                  ? 'Map unavailable right now — the forecast above still works.'
+                  : 'Loading map…'}
+              </div>
+            )}
+            <Scrubber
+              timesUTC={centerData.timesUTC}
+              windowStart={windowStart}
+              windowEnd={windowEnd}
+              selectedIndex={selectedIndex}
+              nowIndex={nowIndex}
+              onScrub={setSelectedIndex}
+              playing={playing}
+              onTogglePlay={() => setPlaying((p) => !p)}
+              timezone={TIMEZONE}
+            />
+            <AgreementBand
+              agreement={agreement}
+              windowStart={windowStart}
+              windowEnd={windowEnd}
+              timesUTC={centerData.timesUTC}
+              currentPM25={centerData.pm25}
+              previousRun={previousRun}
+              hrrrSeries={hrrrLocal}
+            />
+          </div>,
           mapSlot,
         )}
-      <Scrubber
-        timesUTC={centerData.timesUTC}
-        windowStart={windowStart}
-        windowEnd={windowEnd}
-        selectedIndex={selectedIndex}
-        nowIndex={nowIndex}
-        onScrub={setSelectedIndex}
-        playing={playing}
-        onTogglePlay={() => setPlaying((p) => !p)}
-        timezone={TIMEZONE}
-      />
-      <AgreementBand
-        agreement={agreement}
-        windowStart={windowStart}
-        windowEnd={windowEnd}
-        timesUTC={centerData.timesUTC}
-        currentPM25={centerData.pm25}
-        previousRun={previousRun}
-        hrrrSeries={hrrrLocal}
-      />
       <FiveDayStrip
         timesUTC={centerData.timesUTC}
         pm25={centerData.pm25}
