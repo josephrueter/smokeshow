@@ -47,7 +47,6 @@ RAMP_R = np.array([205, 198, 192, 186, 176, 160, 126, 64, 20], dtype=float)
 RAMP_G = np.array([207, 200, 190, 180, 165, 140, 100, 50, 16], dtype=float)
 RAMP_B = np.array([210, 204, 188, 170, 146, 114, 78, 42, 15], dtype=float)
 RAMP_A = np.array([0, 0.07, 0.18, 0.27, 0.38, 0.5, 0.62, 0.78, 0.9], dtype=float) * 255
-STIPPLE_CELL_PX = 2  # ash-grain speck cell size, mirrors the client layer
 
 
 def merc_y(lat_deg):
@@ -64,27 +63,14 @@ def target_grid():
 
 
 def colorize(ug_m3):
+    # Smooth wash only. The ash-grain stipple is applied CLIENT-side in
+    # screen space (see SmokeCanvasLayer): texture baked into a CONUS-wide
+    # image turns into smudges after 10-20x map upscaling.
     v = np.clip(np.nan_to_num(ug_m3, nan=0.0), 0, None)
     r = np.interp(v, STOPS, RAMP_R)
     g = np.interp(v, STOPS, RAMP_G)
     b = np.interp(v, STOPS, RAMP_B)
     a = np.interp(v, STOPS, RAMP_A)
-
-    # Ash-grain stipple, same deterministic hash idea as the client canvas:
-    # darker specks whose density follows concentration, stable frame to
-    # frame so playback shows dissolve rather than flicker.
-    h, w = v.shape
-    ys, xs = np.mgrid[0:h, 0:w]
-    cx = (xs // STIPPLE_CELL_PX).astype(np.int64)
-    cy = (ys // STIPPLE_CELL_PX).astype(np.int64)
-    hash01 = (((cx * 73856093) ^ (cy * 19349663)) % 1000) / 1000.0
-    # Cap density so specks stay isolated grain: uncapped, heavy smoke turns
-    # adjacent speck cells into ugly merged blocks after map upscaling.
-    speck = hash01 < np.minimum(0.16, (a / 255.0) * 0.24)
-    r = np.where(speck, r * 0.78, r)
-    g = np.where(speck, g * 0.78, g)
-    b = np.where(speck, b * 0.78, b)
-    a = np.where(speck, np.minimum(255, a * 1.3 + 18), a)
     return np.dstack([r, g, b, a]).astype(np.uint8)
 
 

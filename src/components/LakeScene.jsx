@@ -11,8 +11,10 @@ const STATES = [
   [1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, '#C9C5BD', '#E8DFC9', 0.0],
   [0.5, 0.16, 0.9, 0.1, 1.0, 0.0, 1.0, 0.0, '#C9C5BD', '#E8DFC9', 0.9],
   [0.15, 0.34, 0.5, 0.22, 0.9, 0.1, 1.0, 0.0, '#C4B8A6', '#DFC49A', 0.8],
-  [0.0, 0.55, 0.18, 0.45, 0.5, 0.26, 1.0, 0.08, '#B3A48F', '#CBAB84', 0.55],
-  [0.0, 0.75, 0.0, 0.68, 0.15, 0.55, 0.9, 0.26, '#A79A88', '#BFA284', 0.3],
+  // h4 (the veil over the dock) strengthened at the top stages so the
+  // foreground visibly participates in the progression too.
+  [0.0, 0.55, 0.18, 0.45, 0.5, 0.26, 1.0, 0.12, '#B3A48F', '#CBAB84', 0.55],
+  [0.0, 0.75, 0.0, 0.68, 0.15, 0.55, 0.8, 0.34, '#A79A88', '#BFA284', 0.3],
 ];
 // PM2.5 anchor per state row (band midpoints; ramps saturate by 175).
 const ANCHORS = [6, 23, 45, 100, 175];
@@ -88,7 +90,10 @@ export default function LakeScene({ pm25 }) {
   const p = paramsFor(pm25);
   return (
     <div className="lake-scene" role="img" aria-label="Lake scene showing current smoke conditions">
-      <svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+      {/* viewBox trims dead sky above the sun; the container's aspect-ratio
+          crops the bottom so the dock runs off-frame — 1/3 shorter without
+          squashing the drawing. */}
+      <svg viewBox="0 45 800 455" xmlns="http://www.w3.org/2000/svg">
         <rect width="800" height="500" fill={BG} />
 
         {/* sun: crisp outline crossfades into a hazy disc */}

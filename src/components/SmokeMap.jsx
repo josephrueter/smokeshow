@@ -50,9 +50,21 @@ export default function SmokeMap({
   const mapRef = useRef(null);
   const smokeLayerRef = useRef(null);
   const markerRef = useRef(null);
-  const frameRef = useRef(null); // { meta, vA, vB, changedAt, hrrrMode }
-  const hrrrOverlaysRef = useRef(null); // { a, b } L.imageOverlay pair for crossfade
+  const frameRef = useRef(null); // { meta, vA, vB, imgA, imgB, bounds, changedAt, hrrrMode }
+  const imageCacheRef = useRef(new Map()); // url -> HTMLImageElement (decoded)
   const [tier, setTier] = useState(1);
+
+  // Decode-once image cache; crossOrigin so the canvas stays readable.
+  function loadFrame(url) {
+    const cache = imageCacheRef.current;
+    if (cache.has(url)) return cache.get(url);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    const promise = img.decode().then(() => img);
+    cache.set(url, promise);
+    return promise;
+  }
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -92,9 +104,8 @@ export default function SmokeMap({
       ro.disconnect();
       map.remove();
       mapRef.current = null;
-      // Overlays die with the map — a stale ref here would leave the remounted
+      // Layers die with the map — a stale ref here would leave the remounted
       // map (StrictMode, location change) updating orphaned layers forever.
-      hrrrOverlaysRef.current = null;
       smokeLayerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,39 +141,31 @@ export default function SmokeMap({
     const urlB = hrrr?.frameByTime.get(timeB) ?? urlA;
     const hrrrMode = !!urlA;
 
-    if (hrrrMode) {
-      if (!hrrrOverlaysRef.current) {
-        const bounds = [
-          [hrrr.manifest.bounds.latS, hrrr.manifest.bounds.lonW],
-          [hrrr.manifest.bounds.latN, hrrr.manifest.bounds.lonE],
-        ];
-        hrrrOverlaysRef.current = {
-          a: L.imageOverlay(urlA, bounds, { opacity: 1, interactive: false }).addTo(
-            mapRef.current,
-          ),
-          b: L.imageOverlay(urlB, bounds, { opacity: 0, interactive: false }).addTo(
-            mapRef.current,
-          ),
-        };
-      } else {
-        hrrrOverlaysRef.current.a.setUrl(urlA).setOpacity(1);
-        hrrrOverlaysRef.current.b.setUrl(urlB).setOpacity(0);
-      }
-    } else if (hrrrOverlaysRef.current) {
-      hrrrOverlaysRef.current.a.setOpacity(0);
-      hrrrOverlaysRef.current.b.setOpacity(0);
-    }
-    smokeLayerRef.current.setVisible(!hrrrMode);
-
     const vA = frameValues(data, meta, selectedIndex);
     const vB = frameValues(data, meta, Math.min(selectedIndex + 1, lastIdx));
-    frameRef.current = { meta, vA, vB, changedAt: performance.now(), hrrrMode };
+    const bounds = hrrrMode
+      ? [
+          [hrrr.manifest.bounds.latS, hrrr.manifest.bounds.lonW],
+          [hrrr.manifest.bounds.latN, hrrr.manifest.bounds.lonE],
+        ]
+      : null;
+    const frame = { meta, vA, vB, imgA: null, imgB: null, bounds, changedAt: performance.now(), hrrrMode };
+    frameRef.current = frame;
 
     // Always draw the exact hour on step: when playing, the rAF loop below
     // immediately takes over and blends toward the next hour — but if rAF is
     // throttled (hidden tab, low-power mode), this keeps playback stepping
     // instead of freezing the canvas while the clock advances.
-    if (!hrrrMode) smokeLayerRef.current.setField(meta, vA, vA, 0);
+    if (hrrrMode) {
+      Promise.all([loadFrame(urlA), urlB ? loadFrame(urlB) : null]).then(([a, b]) => {
+        if (frameRef.current !== frame || !smokeLayerRef.current) return; // stale hour
+        frame.imgA = a;
+        frame.imgB = b || a;
+        smokeLayerRef.current.setImageFrames(a, b || a, 0, bounds);
+      });
+    } else {
+      smokeLayerRef.current.setField(meta, vA, vA, 0);
+    }
 
     const centerPoint = (gridTiers[1] || data).find((p) => p.isCenter);
     const level = centerPoint ? levelForPM25(centerPoint.pm25[selectedIndex]) : null;
@@ -176,13 +179,11 @@ export default function SmokeMap({
     let raf;
     const loop = () => {
       const f = frameRef.current;
-      if (f) {
+      if (f && smokeLayerRef.current) {
         const t = Math.min(1, (performance.now() - f.changedAt) / (frameMs || 600));
-        if (f.hrrrMode && hrrrOverlaysRef.current) {
-          // Crossfade between the two hourly HRRR images
-          hrrrOverlaysRef.current.a.setOpacity(1 - t);
-          hrrrOverlaysRef.current.b.setOpacity(t);
-        } else if (!f.hrrrMode && smokeLayerRef.current) {
+        if (f.hrrrMode) {
+          if (f.imgA) smokeLayerRef.current.setImageFrames(f.imgA, f.imgB, t, f.bounds);
+        } else {
           smokeLayerRef.current.setField(f.meta, f.vA, f.vB, t);
         }
       }

@@ -345,6 +345,7 @@ body {
   overflow: hidden;
   border: 1px solid var(--border);
   line-height: 0;
+  aspect-ratio: 800 / 330; /* crops the svg's bottom — dock runs off-frame */
 }
 
 .lake-scene svg {
