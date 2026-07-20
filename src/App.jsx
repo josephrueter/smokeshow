@@ -10,6 +10,7 @@ import FiveDayStrip from './components/FiveDayStrip.jsx';
 import SharedBanner from './components/SharedBanner.jsx';
 import ShareButton from './components/ShareButton.jsx';
 import InstallNudge from './components/InstallNudge.jsx';
+import PullToRefresh from './components/PullToRefresh.jsx';
 
 import { requestLocation, setManualLocation, clearLocation } from './lib/geolocation.js';
 import { reverseGeocode } from './lib/geocoding.js';
@@ -172,6 +173,23 @@ export default function App() {
       cancelled = true;
     };
   }, [location]);
+
+  // Home-screen app pattern: returning to a backgrounded app with stale
+  // data should feel like opening it fresh — reload if the forecast is
+  // older than 20 minutes when the app becomes visible again.
+  useEffect(() => {
+    const onVisible = () => {
+      if (
+        document.visibilityState === 'visible' &&
+        centerData &&
+        Date.now() - centerData.fetchedAtMs > 20 * 60_000
+      ) {
+        window.location.reload();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [centerData]);
 
   const windowStart = Math.max(0, nowIndex - 12);
   const windowEnd = centerData ? Math.min(centerData.timesUTC.length - 1, nowIndex + 48) : 0;
@@ -340,6 +358,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <PullToRefresh />
       <header className="app-header">
         <h1 className="app-header__wordmark">SMOKESHOW</h1>
         <span className="app-header__tagline">smoky where you are?</span>
