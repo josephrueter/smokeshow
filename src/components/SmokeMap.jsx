@@ -45,6 +45,7 @@ export default function SmokeMap({
   playing,
   frameMs,
   hrrr,
+  verdictPm25, // sensor-anchored series — marker must agree with the chip
 }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
@@ -167,12 +168,17 @@ export default function SmokeMap({
       smokeLayerRef.current.setField(meta, vA, vA, 0);
     }
 
-    const centerPoint = (gridTiers[1] || data).find((p) => p.isCenter);
-    const level = centerPoint ? levelForPM25(centerPoint.pm25[selectedIndex]) : null;
+    // Marker label reads the ANCHORED series (same source as the chip) —
+    // reading the raw model grid here once showed "All clear" on the map
+    // while sensors read AQI 176.
+    const markerPm25 =
+      verdictPm25?.[selectedIndex] ??
+      (gridTiers[1] || data).find((p) => p.isCenter)?.pm25[selectedIndex];
+    const level = levelForPM25(markerPm25);
     const el = markerRef.current?.getElement();
     const label = el?.querySelector('.user-marker__label');
     if (label && level) label.textContent = level.name;
-  }, [gridTiers, selectedIndex, tier, playing, hrrr]);
+  }, [gridTiers, selectedIndex, tier, playing, hrrr, verdictPm25]);
 
   useEffect(() => {
     if (!playing) return;

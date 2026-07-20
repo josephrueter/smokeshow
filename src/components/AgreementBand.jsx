@@ -1,17 +1,10 @@
 import { summarizeAgreement } from '../lib/agreement.js';
 
-function AgreementCurves({ timesUTC, windowStart, windowEnd, currentPM25, previousRun, hrrrSeries }) {
+function AgreementCurves({ timesUTC, windowStart, windowEnd, currentPM25, hrrrSeries }) {
   const width = 320;
   const height = 80;
   const idxs = [];
   for (let i = windowStart; i <= windowEnd; i++) idxs.push(i);
-
-  function prevValueFor(i) {
-    if (!previousRun) return null;
-    const t = timesUTC[i];
-    const prevIdx = previousRun.timesUTC.indexOf(t);
-    return prevIdx !== -1 ? previousRun.pm25[prevIdx] : null;
-  }
 
   function hrrrValueFor(i) {
     return hrrrSeries?.get(timesUTC[i]) ?? null;
@@ -19,7 +12,6 @@ function AgreementCurves({ timesUTC, windowStart, windowEnd, currentPM25, previo
 
   const allValues = [
     ...idxs.map((i) => currentPM25[i] ?? 0),
-    ...idxs.map((i) => prevValueFor(i) ?? 0),
     ...idxs.map((i) => hrrrValueFor(i) ?? 0),
     50,
   ];
@@ -56,28 +48,14 @@ function AgreementCurves({ timesUTC, windowStart, windowEnd, currentPM25, previo
           className="agreement-band__line agreement-band__line--current"
           fill="none"
         />
-        {/* Drawn last: adjacent CAMS runs usually overlap almost exactly, so
-            the dashed previous-run line must sit on top to stay visible. */}
-        <polyline
-          points={toPoints(prevValueFor)}
-          className="agreement-band__line agreement-band__line--previous"
-          fill="none"
-        />
       </svg>
       <div className="agreement-band__legend">
         <span className="agreement-band__legend-item agreement-band__legend-item--current">
-          CAMS (this run)
+          CAMS (Europe's model)
         </span>
-        {previousRun && (
-          <span className="agreement-band__legend-item agreement-band__legend-item--previous">
-            CAMS (previous run)
-          </span>
-        )}
-        {hrrrSeries && (
-          <span className="agreement-band__legend-item agreement-band__legend-item--hrrr">
-            NOAA HRRR-Smoke
-          </span>
-        )}
+        <span className="agreement-band__legend-item agreement-band__legend-item--hrrr">
+          NOAA HRRR-Smoke (US model)
+        </span>
       </div>
     </>
   );
@@ -89,7 +67,6 @@ export default function AgreementBand({
   windowEnd,
   timesUTC,
   currentPM25,
-  previousRun,
   hrrrSeries,
 }) {
   const windowAgreement = agreement.slice(windowStart, windowEnd + 1);
@@ -110,24 +87,20 @@ export default function AgreementBand({
         ))}
       </div>
       <p className="agreement-band__summary">{label}</p>
-      <div className="agreement-band__detail">
-        {previousRun || hrrrSeries ? (
+      {hrrrSeries && (
+        <div className="agreement-band__detail">
           <AgreementCurves
             timesUTC={timesUTC}
             windowStart={windowStart}
             windowEnd={windowEnd}
             currentPM25={currentPM25}
-            previousRun={previousRun}
             hrrrSeries={hrrrSeries}
           />
-        ) : (
-          <p>Need a second forecast run to compare. Check back in a few hours.</p>
-        )}
-        <p className="agreement-band__caveat">
-          When these lines separate, treat timing as uncertain by ±6–12 hours. When the dashed
-          line rides right on top of the solid one, the runs agree.
-        </p>
-      </div>
+          <p className="agreement-band__caveat">
+            When these lines separate, treat timing as uncertain by ±6–12 hours.
+          </p>
+        </div>
+      )}
       <p className="agreement-band__standing-caveat">
         All smoke models depend on satellites seeing the fires. Clouds or thick smoke can hide
         fires, and hidden fires aren't in any forecast.

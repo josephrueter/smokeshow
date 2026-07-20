@@ -23,7 +23,7 @@ import { computeVerdict, verdictHeadline } from './lib/verdict.js';
 import { levelForPM25 } from './lib/rating.js';
 import { ugm3ToAqi } from './lib/aqi.js';
 import { formatLocalTime, formatVerdictTime } from './lib/time.js';
-import { getJSON, setJSON } from './lib/storage.js';
+import { clearKey } from './lib/storage.js';
 
 // Map (and Leaflet with it) loads as a separate chunk after the verdict paints —
 // share-spec rule: rating chip + clear-time render first from a single point
@@ -32,7 +32,6 @@ const SmokeMap = lazy(() => import('./components/SmokeMap.jsx'));
 
 const TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const PLAY_INTERVAL_MS = 600; // satellite-loop cadence; the map blends between hours at 60fps
-const PREVIOUS_RUN_KEY = 'previousRun';
 const LOCATION_MATCH_TOLERANCE_DEG = 0.05;
 // Map zoom tiers: grid spacing per tier — same 9x9 point budget, wider net.
 const TIER_SPACING_KM = { 1: 25, 2: 75, 3: 200 };
@@ -70,7 +69,6 @@ export default function App() {
   const [gridTiers, setGridTiers] = useState({}); // stage 2+: per-zoom-tier grids — hydrate the map
   const [gridFailed, setGridFailed] = useState(false);
   const fetchingTiersRef = useRef(new Set());
-  const [previousRun, setPreviousRun] = useState(null);
   const [hrrr, setHrrr] = useState(null);
   const [sensorNow, setSensorNow] = useState(null);
   const [nowIndex, setNowIndex] = useState(0);
@@ -87,6 +85,7 @@ export default function App() {
     else requestLocation().then(setLocation);
     // HRRR feed is additive — the app is fully functional without it.
     fetchHRRR().then(setHrrr).catch(() => {});
+    clearKey('previousRun'); // run-to-run comparison retired; drop the stale cache
   }, []);
 
   useEffect(() => {
@@ -136,24 +135,7 @@ export default function App() {
         const [center] = await fetchGridPM25([centerPoint]);
         if (cancelled) return;
 
-        const cachedPrev = getJSON(PREVIOUS_RUN_KEY);
-        const usablePrev =
-          cachedPrev &&
-          Math.abs(cachedPrev.lat - location.lat) < LOCATION_MATCH_TOLERANCE_DEG &&
-          Math.abs(cachedPrev.lon - location.lon) < LOCATION_MATCH_TOLERANCE_DEG
-            ? cachedPrev
-            : null;
-
-        setJSON(PREVIOUS_RUN_KEY, {
-          lat: location.lat,
-          lon: location.lon,
-          timesUTC: center.timesUTC,
-          pm25: center.pm25,
-          fetchedAtMs,
-        });
-
         const nIdx = findNowIndex(center.timesUTC);
-        setPreviousRun(usablePrev);
         setNowIndex(nIdx);
         setSelectedIndex(nIdx);
         setCenterData({ ...center, fetchedAtMs });
@@ -227,11 +209,10 @@ export default function App() {
             timesUTC: centerData.timesUTC,
             pm25: centerData.pm25,
             fetchedAtMs: centerData.fetchedAtMs,
-            previousRun,
             hrrrSeries: hrrrLocal,
           })
         : null,
-    [centerData, previousRun, hrrrLocal],
+    [centerData, hrrrLocal],
   );
 
   // Experience surfaces (chip, verdict, strip, forecast text) read the
@@ -410,6 +391,7 @@ export default function App() {
                   playing={playing}
                   frameMs={PLAY_INTERVAL_MS}
                   hrrr={hrrr}
+                  verdictPm25={anchoredPm25}
                 />
               </Suspense>
             ) : (
@@ -436,8 +418,7 @@ export default function App() {
               windowEnd={windowEnd}
               timesUTC={centerData.timesUTC}
               currentPM25={centerData.pm25}
-              previousRun={previousRun}
-              hrrrSeries={hrrrLocal}
+                    hrrrSeries={hrrrLocal}
             />
           </div>,
           mapSlot,
