@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { searchPlaces } from '../lib/geocoding.js';
 
-export default function LocationSearch({ onSelect }) {
+export default function LocationSearch({ onSelect, hint }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function LocationSearch({ onSelect }) {
   return (
     <div className="location-search">
       <p className="location-search__hint">
-        Location access was denied or unavailable. Search for a place instead.
+        {hint ?? 'Location access was denied or unavailable. Search for a place instead.'}
       </p>
       <input
         type="text"

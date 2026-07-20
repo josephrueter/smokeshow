@@ -78,6 +78,7 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [choosingLocation, setChoosingLocation] = useState(false);
   const playIntervalRef = useRef(null);
 
   useEffect(() => {
@@ -278,8 +279,14 @@ export default function App() {
     });
   }, [centerData, anchoredPm25, nowIndex]);
 
-  async function handleUpdateLocation() {
+  // "Update location" opens a chooser: search any city, or re-use the GPS.
+  function handleUpdateLocation() {
     setPlaying(false);
+    setChoosingLocation((v) => !v);
+  }
+
+  async function handleUseMyLocation() {
+    setChoosingLocation(false);
     clearLocation();
     setLocation(null);
     setPlaceName(null);
@@ -301,6 +308,8 @@ export default function App() {
   }
 
   function handleManualSelect(result) {
+    setChoosingLocation(false);
+    setPlaceName(null);
     const loc = setManualLocation(result.lat, result.lon, result.label);
     setLocation(loc);
   }
@@ -361,6 +370,23 @@ export default function App() {
         />
       ) : (
         <LocationBanner placeName={placeName} onUpdateLocation={handleUpdateLocation} />
+      )}
+      {choosingLocation && (
+        <div className="location-chooser">
+          <LocationSearch onSelect={handleManualSelect} hint="Search for a city, or use your current location." />
+          <div className="location-chooser__actions">
+            <button type="button" className="location-chooser__gps" onClick={handleUseMyLocation}>
+              Use my current location
+            </button>
+            <button
+              type="button"
+              className="location-chooser__cancel"
+              onClick={() => setChoosingLocation(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
       <RatingChip
         level={selectedLevel}

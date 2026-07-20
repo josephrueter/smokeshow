@@ -104,6 +104,14 @@ export default function SmokeMap({
     if (!gridTiers[tier]) onNeedTier?.(tier);
   }, [tier, gridTiers, onNeedTier]);
 
+  // Recenter when the user switches cities — the map instance outlives the
+  // location, so follow it explicitly.
+  useEffect(() => {
+    if (!mapRef.current || !markerRef.current) return;
+    mapRef.current.setView([center.lat, center.lon], 9);
+    markerRef.current.setLatLng([center.lat, center.lon]);
+  }, [center.lat, center.lon]);
+
   useEffect(() => {
     if (!smokeLayerRef.current || !mapRef.current) return;
     // Render the active tier; while it loads, fall back to the nearest fetched

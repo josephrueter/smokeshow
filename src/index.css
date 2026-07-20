@@ -125,6 +125,43 @@ body {
   cursor: pointer;
 }
 
+/* Location chooser (switch cities) */
+.location-chooser {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.location-chooser__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.location-chooser__gps {
+  background: var(--accent);
+  border: none;
+  color: #16130f;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.location-chooser__cancel {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
 /* Rating chip */
 .rating-chip {
   border-radius: 1rem;
