@@ -1,198 +1,42 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <meta name="theme-color" content="#16130f" />
-    <title>SMOKESHOW — Wildfire Smoke Map &amp; Forecast. When Will It Clear?</title>
-    <meta
-      name="description"
-      content="Live wildfire smoke forecast for your location. See the smoke in the air right now, where it's coming from, and when it clears — in plain language."
-    />
-    <link rel="canonical" href="https://smokeshow.earth/" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-title" content="SMOKESHOW" />
-    <link rel="manifest" href="/site.webmanifest" />
-  </head>
-  <body>
-    <div id="root"></div>
-
-    <!-- Server-delivered SEO content: FAQ -> explainer -> disclaimer.
-         Deliberately static HTML (not React-rendered) so crawlers see it in
-         the initial payload. The app renders above in #root. -->
-    <div class="app app--bottom">
-      <!-- React portals the live smoke map here (see App.jsx) — just above
-           the FAQ; FAQ copy references "the map above". -->
-      <div id="map-slot"></div>
-
-      <section class="faq">
-        <h2>Smoke in the air? Common questions.</h2>
-
-        <h3>Why does it smell like smoke outside today?</h3>
-        <p>
-          If it smells like smoke outside and there's no fire nearby, you're almost certainly
-          smelling wildfire smoke that traveled — often hundreds or thousands of miles. Wind
-          carries smoke from large wildfires across entire regions, so the air can smell like a
-          campfire even when the nearest fire is in another state or another country. The map
-          above shows the smoke over your location right now and where it's headed.
-        </p>
-
-        <h3>Where is the smoke coming from?</h3>
-        <p>
-          Most smoke events in the Upper Midwest and eastern US come from Canadian wildfires,
-          whose smoke rides the wind south and east for days. Western states more often see smoke
-          from fires in California, Oregon, Washington, and the Rockies. Scrub the timeline above
-          backward to watch where the smoke over you came from.
-        </p>
-
-        <h3>Is there smoke in the air near me right now?</h3>
-        <p>
-          Allow location access above and SMOKESHOW shows the smoke in the air at your exact spot
-          — what you'd likely smell and see, right now, based on current forecast models. No
-          account, no app, no typing in a city.
-        </p>
-
-        <h3>When will the smoke go away?</h3>
-        <p>
-          It depends on the wind and the fires, but for any single location, smoke usually
-          arrives and clears in waves over hours to a few days rather than sitting for weeks.
-          SMOKESHOW's headline answer is the clear time: the first stretch of at least six
-          straight hours of cleaner air in the forecast. Check the verdict above for your
-          location's clear time.
-        </p>
-
-        <h3>How long does wildfire smoke stay in the air?</h3>
-        <p>
-          Smoke particles are so small they can stay suspended for days to weeks and travel
-          across continents. What matters locally is the wind: a shift can clear a smoky sky in
-          hours or bring a fresh wave just as fast. That's why this page shows the past 12 hours
-          and the days ahead — direction matters more than the moment.
-        </p>
-
-        <h3>How far ahead can smoke be forecast?</h3>
-        <p>
-          Smoke forecasts are sharp for about the next one to two days and get fuzzier after
-          that. Models must find the fires by satellite, estimate how much smoke each one makes,
-          and then ride the wind forecast — and each step adds error (the full explanation is
-          below). SMOKESHOW shows a detailed two-day window plus a five-day outlook, and tells
-          you when the forecast models agree and when they don't.
-        </p>
-
-        <h3>Is it safe to be outside when there's smoke in the air?</h3>
-        <p>
-          SMOKESHOW can't answer that for you — it describes what the air is like, not what your
-          body can handle. Sensitivity varies a lot with age, health, and activity. For health
-          guidance during wildfire smoke, use AirNow.gov and your local health authorities, and
-          talk to a medical professional about your situation.
-        </p>
-      </section>
-
-      <div class="explainer">
-        <h2>Why is smoke so hard to forecast?</h2>
-        <p>Forecasting smoke is like forecasting weather — with three extra problems stacked on top.</p>
-        <p>
-          <strong>First, you have to find the fires.</strong> Satellites spot fires by detecting
-          heat from space. But clouds can hide a fire from the satellite. So can thick smoke from
-          another fire. A fire the satellite can't see is a fire the forecast doesn't know about.
-        </p>
-        <p>
-          <strong>Second, you have to guess the smoke.</strong> Nobody can measure exactly how
-          much smoke a fire makes. Scientists estimate it from how hot the fire looks from space
-          and what's burning underneath. Grass, pine forest, and swampy peat all burn differently
-          and make different amounts of smoke.
-        </p>
-        <p>
-          <strong>Third, you ride the wind.</strong> Smoke goes wherever the wind carries it —
-          sometimes more than a thousand miles. If the wind forecast is off by even a little, the
-          smoke ends up somewhere else. And height matters: smoke riding high in the sky might
-          pass right over your town while the air at the ground stays clean. It's the low smoke
-          you actually breathe.
-        </p>
-        <p>
-          Each step adds a little error, and the errors multiply. That's why smoke forecasts are
-          pretty sharp for the next day or two and get fuzzy after that — and why this page tells
-          you when the models agree and when they don't.
-        </p>
-      </div>
-
-      <div class="disclaimer">
-        <p>
-          <strong>SMOKESHOW is for informational and educational purposes only.</strong> It is
-          not health, medical, or safety advice. Forecasts are model estimates and can be wrong —
-          sometimes by a lot. Descriptions of what you might smell, see, or feel are
-          generalizations, not predictions about your body. For decisions about your health,
-          outdoor activity, or air quality safety, rely on official sources like AirNow.gov, the
-          National Weather Service, and your local health authorities, and talk to a medical
-          professional about your own situation.
-        </p>
-      </div>
-    </div>
-
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "Why does it smell like smoke outside today?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "If it smells like smoke outside and there's no fire nearby, you're almost certainly smelling wildfire smoke that traveled — often hundreds or thousands of miles. Wind carries smoke from large wildfires across entire regions, so the air can smell like a campfire even when the nearest fire is in another state or another country. The map above shows the smoke over your location right now and where it's headed."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Where is the smoke coming from?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Most smoke events in the Upper Midwest and eastern US come from Canadian wildfires, whose smoke rides the wind south and east for days. Western states more often see smoke from fires in California, Oregon, Washington, and the Rockies. Scrub the timeline above backward to watch where the smoke over you came from."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Is there smoke in the air near me right now?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Allow location access above and SMOKESHOW shows the smoke in the air at your exact spot — what you'd likely smell and see, right now, based on current forecast models. No account, no app, no typing in a city."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "When will the smoke go away?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "It depends on the wind and the fires, but for any single location, smoke usually arrives and clears in waves over hours to a few days rather than sitting for weeks. SMOKESHOW's headline answer is the clear time: the first stretch of at least six straight hours of cleaner air in the forecast. Check the verdict above for your location's clear time."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How long does wildfire smoke stay in the air?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Smoke particles are so small they can stay suspended for days to weeks and travel across continents. What matters locally is the wind: a shift can clear a smoky sky in hours or bring a fresh wave just as fast. That's why this page shows the past 12 hours and the days ahead — direction matters more than the moment."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "How far ahead can smoke be forecast?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Smoke forecasts are sharp for about the next one to two days and get fuzzier after that. Models must find the fires by satellite, estimate how much smoke each one makes, and then ride the wind forecast — and each step adds error (the full explanation is below). SMOKESHOW shows a detailed two-day window plus a five-day outlook, and tells you when the forecast models agree and when they don't."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Is it safe to be outside when there's smoke in the air?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "SMOKESHOW can't answer that for you — it describes what the air is like, not what your body can handle. Sensitivity varies a lot with age, health, and activity. For health guidance during wildfire smoke, use AirNow.gov and your local health authorities, and talk to a medical professional about your situation."
-            }
-          }
-        ]
-      }
-    </script>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Description" content="Live wildfire smoke forecast for your location. See the smoke in the air right now, where it's coming from, and when it clears — in plain language.">
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.6">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000; min-height: 23.0px}
+    p.p4 {margin: 0.0px 0.0px 12.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000}
+    span.s1 {font-kerning: none}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"></span><br></p>
+<h2 style="margin: 0.0px 0.0px 14.9px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>Smoke in the air? Common questions.</b></span></h2>
+<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>Why does it smell like smoke outside today?</b></span></h3>
+<p class="p4"><span class="s1">If it smells like smoke outside and there's no fire nearby, you're almost certainly smelling wildfire smoke that traveled, often hundreds or thousands of miles. Wind carries smoke from large wildfires across entire regions, so the air can smell like a campfire even when the nearest fire is in another state or territory away. The map here shows the smoke over your location and where it's likely headed.</span></p>
+<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>Where is the smoke coming from?</b></span></h3>
+<p class="p4"><span class="s1">Most smoke events in the Upper Midwest and eastern US come from Canadian wildfires, whose smoke rides the wind south and east for days. Western states in the US more often see smoke from fires in California, Oregon, Washington, and the Rockies. Variations exist across the globe. Scrub the timeline backward to watch where the smoke over you came from.</span></p>
+<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>Is there smoke in the air near me right now?</b></span></h3>
+<p class="p4"><span class="s1">Allow location access above and smokeshow will show the smoke in the air near you, what you'd likely smell and see, based on current forecast models. No account, or app required.</span></p>
+<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>When will the smoke go away?</b></span></h3>
+<p class="p4"><span class="s1">It depends on the wind and the fires, but for any single location, smoke usually arrives and clears in waves over hours to a few days rather than sitting for weeks. SMOKESHOW's headline answer is the clear time: the first stretch of at least six straight hours of cleaner air in the forecast. Check the verdict above for your location's clear time.</span></p>
+<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>How long does wildfire smoke stay in the air?</b></span></h3>
+<p class="p4"><span class="s1">Smoke particles are so small they can stay suspended for days to weeks and travel across continents. What matters locally is the wind: a shift can clear a smoky sky in hours or bring a fresh wave just as fast. That's why this page shows the past 12 hours and the days ahead — direction matters more than the moment.</span></p>
+<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>How far ahead can smoke be forecast?</b></span></h3>
+<p class="p4"><span class="s1">Smoke forecasts are sharp for about the next one to two days and get fuzzier after that. Models must find the fires by satellite, estimate how much smoke each one makes, and then ride the wind forecast — and each step adds error (the full explanation is below). SMOKESHOW shows a detailed two-day window plus a five-day outlook, and tells you when the forecast models agree and when they don't.</span></p>
+<h3 style="margin: 0.0px 0.0px 14.0px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>Is it safe to be outside when there's smoke in the air?</b></span></h3>
+<p class="p4"><span class="s1">SMOKESHOW can't answer that for you — it describes what the air is like, not what your body can handle. Sensitivity varies a lot with age, health, and activity. For health guidance during wildfire smoke, use AirNow.gov and your local health authorities, and talk to a medical professional about your situation.</span></p>
+<h2 style="margin: 0.0px 0.0px 14.9px 0.0px; font: 18.0px Times; -webkit-text-stroke: #000000"><span class="s1"><b>Why is smoke so hard to forecast?</b></span></h2>
+<p class="p4"><span class="s1">Forecasting smoke is like forecasting weather — with three extra problems stacked on top.</span></p>
+<p class="p4"><span class="s1"><b>First, you have to find the fires.</b> Satellites spot fires by detecting heat from space. But clouds can hide a fire from the satellite. So can thick smoke from another fire. A fire the satellite can't see is a fire the forecast doesn't know about.</span></p>
+<p class="p4"><span class="s1"><b>Second, you have to guess the smoke.</b> Nobody can measure exactly how much smoke a fire makes. Scientists estimate it from how hot the fire looks from space and what's burning underneath. Grass, pine forest, and swampy peat all burn differently and make different amounts of smoke.</span></p>
+<p class="p4"><span class="s1"><b>Third, you ride the wind.</b> Smoke goes wherever the wind carries it — sometimes more than a thousand miles. If the wind forecast is off by even a little, the smoke ends up somewhere else. And height matters: smoke riding high in the sky might pass right over your town while the air at the ground stays clean. It's the low smoke you actually breathe.</span></p>
+<p class="p4"><span class="s1">Each step adds a little error, and the errors multiply. That's why smoke forecasts are pretty sharp for the next day or two and get fuzzy after that — and why this page tells you when the models agree and when they don't.</span></p>
+<p class="p4"><span class="s1"><b>SMOKESHOW is for informational and educational purposes only.</b> It is not health, medical, or safety advice. Forecasts are model estimates and can be wrong — sometimes by a lot. Descriptions of what you might smell, see, or feel are generalizations, not predictions about your body. For decisions about your health, outdoor activity, or air quality safety, rely on official sources like AirNow.gov, the National Weather Service, and your local health authorities, and talk to a medical professional about your own situation.</span></p>
+</body>
 </html>
