@@ -17,7 +17,7 @@ import { buildGrid, snapCoord } from './lib/grid.js';
 import { fetchGridPM25, findNowIndex } from './lib/openMeteo.js';
 import { computeAgreement } from './lib/agreement.js';
 import { fetchHRRR, hrrrSeriesAt } from './lib/hrrr.js';
-import { fetchSensorsNear, applySensorAnchor } from './lib/sensors.js';
+import { fetchSensorsNear, fetchMeasuredDays, applySensorAnchor } from './lib/sensors.js';
 import { buildDaySummaries } from './lib/days.js';
 import { computeVerdict, verdictHeadline } from './lib/verdict.js';
 import { levelForPM25 } from './lib/rating.js';
@@ -71,6 +71,7 @@ export default function App() {
   const fetchingTiersRef = useRef(new Set());
   const [hrrr, setHrrr] = useState(null);
   const [sensorNow, setSensorNow] = useState(null);
+  const [measuredDays, setMeasuredDays] = useState(new Map());
   const [nowIndex, setNowIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -122,6 +123,16 @@ export default function App() {
       fetchSensorsNear(location.lat, location.lon).then((s) => {
         if (!cancelled) setSensorNow(s);
       });
+
+      // Measured history for the past-day boxes: the last 3 local dates.
+      setMeasuredDays(new Map());
+      {
+        const keyFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE });
+        const dates = [3, 2, 1].map((d) => keyFmt.format(new Date(Date.now() - d * 86_400_000)));
+        fetchMeasuredDays(location.lat, location.lon, dates).then((m) => {
+          if (!cancelled) setMeasuredDays(m);
+        });
+      }
 
       try {
         const fetchedAtMs = Date.now();
@@ -428,6 +439,7 @@ export default function App() {
         pm25={anchoredPm25}
         nowIndex={nowIndex}
         timezone={TIMEZONE}
+        measuredDays={measuredDays}
       />
       <InstallNudge levelIndex={nowLevel?.index ?? 0} headline={headline} />
     </div>

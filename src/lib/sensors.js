@@ -25,6 +25,37 @@ export async function fetchSensorsNear(lat, lon) {
   }
 }
 
+// Measured daily AQI for past local dates (YYYY-MM-DD) via /api/history.
+// Returns Map(dateKey -> {aqi, ug, count}); missing dates simply aren't in
+// the map and those day boxes stay model-labeled.
+export async function fetchMeasuredDays(lat, lon, dateKeys) {
+  if (import.meta.env?.DEV) {
+    const mock = new URLSearchParams(window.location.search).get('mockHistory');
+    if (mock) {
+      const aqis = mock.split(',').map(Number);
+      return new Map(
+        dateKeys.map((d, i) => [d, { aqi: aqis[i % aqis.length], ug: null, count: 2 }]),
+      );
+    }
+    return new Map();
+  }
+  const results = await Promise.all(
+    dateKeys.map(async (date) => {
+      try {
+        const res = await fetch(
+          `/api/history?lat=${snapCoord(lat)}&lon=${snapCoord(lon)}&date=${date}`,
+        );
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.aqi != null ? [date, data] : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return new Map(results.filter(Boolean));
+}
+
 const DECAY_HOURS = 12;
 
 // Sensor-anchored series: shift the model by the measured-vs-model gap at

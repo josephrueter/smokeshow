@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { buildDaySummaries, buildPastDaySummaries, bucketForPM25 } from '../lib/days.js';
 import { levelForPM25 } from '../lib/rating.js';
-import { ugm3ToAqi } from '../lib/aqi.js';
+import { ugm3ToAqi, aqiToUgm3 } from '../lib/aqi.js';
 
 // Cigarette equivalence only surfaces at "Tastes like fire" and above (brief rule).
 const CIG_THRESHOLD = 55;
 
-function DayBox({ day, selected, onSelect }) {
+function DayBox({ day, measured, selected, onSelect }) {
   return (
     <button
       type="button"
       className={
-        `five-day-strip__day five-day-strip__day--${day.level?.key}` +
+        `five-day-strip__day five-day-strip__day--${(measured ? levelForPM25(aqiToUgm3(measured.aqi)) : day.level)?.key}` +
         (day.isPast ? ' five-day-strip__day--past' : '') +
         (selected ? ' five-day-strip__day--selected' : '')
       }
@@ -19,18 +19,21 @@ function DayBox({ day, selected, onSelect }) {
       aria-pressed={selected}
     >
       <div className="five-day-strip__weekday">{day.weekday}</div>
-      <div className="five-day-strip__level">{day.level?.name}</div>
-      {day.max != null && (
-        <div className="five-day-strip__range">
-          {(() => {
-            const lo = ugm3ToAqi(day.min ?? day.max);
-            const hi = ugm3ToAqi(day.max);
-            return lo === hi ? `AQI ${hi}` : `AQI ${lo}–${hi}`;
-          })()}
-        </div>
-      )}
+      <div className="five-day-strip__level">
+        {(measured ? levelForPM25(aqiToUgm3(measured.aqi)) : day.level)?.name}
+      </div>
+      <div className="five-day-strip__range">
+        {measured
+          ? `AQI ${measured.aqi}`
+          : day.max != null &&
+            (() => {
+              const lo = ugm3ToAqi(day.min ?? day.max);
+              const hi = ugm3ToAqi(day.max);
+              return lo === hi ? `AQI ${hi}` : `AQI ${lo}–${hi}`;
+            })()}
+      </div>
       {day.isPast ? (
-        <div className="five-day-strip__tag">model estimate</div>
+        <div className="five-day-strip__tag">{measured ? 'measured' : 'model estimate'}</div>
       ) : (
         day.dayParts && (
           <div
@@ -98,7 +101,7 @@ function DayHours({ hours }) {
   );
 }
 
-function DayDetail({ day, hours }) {
+function DayDetail({ day, hours, measured }) {
   const peakLevel = levelForPM25(day.max);
   if (!peakLevel) return null;
   const peakHour = hours.reduce(
@@ -109,7 +112,8 @@ function DayDetail({ day, hours }) {
     <div className="day-detail">
       <p className="day-detail__headline">
         {day.weekday}
-        {day.isPast ? ' (past, model estimate)' : ''}: AQI {ugm3ToAqi(day.min ?? day.max)}–
+        {day.isPast ? (measured ? ' (past)' : ' (past, model estimate)') : ''}:{' '}
+        {measured ? `monitors measured a daily AQI of ${measured.aqi}. Model hourly: ` : ''}AQI {ugm3ToAqi(day.min ?? day.max)}–
         {ugm3ToAqi(day.max)}, that's {Math.round(day.min ?? day.max)}–{Math.round(day.max)} µg/m³
         of fine particles, peak{day.isPast ? 'ed' : 'ing'} at <strong>{peakLevel.name}</strong>
         {peakHour ? ` around ${peakHour.label}` : ''}.
@@ -135,7 +139,7 @@ function DayDetail({ day, hours }) {
   );
 }
 
-export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
+export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone, measuredDays }) {
   const [showPast, setShowPast] = useState(false);
   // undefined = untouched (default to today's panel open); null = user closed it
   const [selectedKey, setSelectedKey] = useState(undefined);
@@ -187,6 +191,7 @@ export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
             <DayBox
               key={day.key}
               day={day}
+              measured={measuredDays?.get(day.key) ?? null}
               selected={effectiveKey === day.key}
               onSelect={() => toggleSelect(day.key)}
             />
@@ -203,7 +208,14 @@ export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone }) {
           ))}
         </div>
       </div>
-      {selectedDay && <DayDetail key={selectedDay.key} day={selectedDay} hours={selectedHours} />}
+      {selectedDay && (
+        <DayDetail
+          key={selectedDay.key}
+          day={selectedDay}
+          hours={selectedHours}
+          measured={measuredDays?.get(selectedDay.key) ?? null}
+        />
+      )}
     </div>
   );
 }
