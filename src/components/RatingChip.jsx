@@ -55,8 +55,10 @@ export default function RatingChip({
             {Math.round(pm25)} µg/m³ PM2.5
             {sensor
               ? aqiSource === 'local' && sources?.local
-                ? ` · ${sensor.count} local sensor${sensor.count === 1 ? '' : 's'} nearby`
-                : ` · official monitor reading`
+                ? ` · ${sensor.count} local sensor${sensor.count === 1 ? '' : 's'}${
+                    sensor.medianDistanceMi != null ? `, typically ~${sensor.medianDistanceMi} mi away` : ' nearby'
+                  }`
+                : ` · official monitor${sensor.distanceMi != null ? ` ~${sensor.distanceMi} mi away` : ' reading'}`
               : ''}
           </span>
         </span>
@@ -67,10 +69,17 @@ export default function RatingChip({
       <div className="rating-chip__notice">{level.notice}</div>
       {disagree && isNow && (
         <div className="rating-chip__why-two">
-          Why two numbers? Official is the nearest government monitor, which can sit 40 or more
-          miles away. Local is the median of {sources.local.count} PurpleAir sensor
-          {sources.local.count === 1 ? '' : 's'} within about 30 miles. Fast-moving smoke makes
-          them disagree, and the reading closer to you is usually the better bet.
+          Why two numbers? Official is the nearest government monitor,{' '}
+          {sources.official.distanceMi != null
+            ? `about ${sources.official.distanceMi} miles from you`
+            : 'which can sit many miles away'}
+          . Local is the median of {sources.local.count} PurpleAir sensor
+          {sources.local.count === 1 ? '' : 's'}
+          {sources.local.medianDistanceMi != null
+            ? `, typically about ${sources.local.medianDistanceMi} miles away`
+            : ' around you'}
+          . Fast-moving smoke makes them disagree, and the reading closer to you is usually the
+          better bet.
         </div>
       )}
       {level.index >= OLFACTORY_FATIGUE_LEVEL_INDEX ? (

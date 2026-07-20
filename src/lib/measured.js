@@ -3,24 +3,36 @@
 // into one median. Pure fetch logic — no window, no Vite.
 import { aqiToUgm3, ugm3ToAqi } from './aqi.js';
 
+function haversineMi(lat1, lon1, lat2, lon2) {
+  const R = 3958.8;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 async function airnowUgm3(lat, lon, key) {
-  if (!key) return { values: [], area: null, observedAt: null };
+  if (!key) return [];
   try {
     const res = await fetch(
       `https://www.airnowapi.org/aq/observation/latLong/current/` +
         `?format=application/json&latitude=${lat}&longitude=${lon}&distance=50&API_KEY=${key}`,
     );
-    if (!res.ok) return { values: [], area: null, observedAt: null };
+    if (!res.ok) return [];
     const rows = (await res.json()).filter((r) => r.ParameterName === 'PM2.5' && r.AQI >= 0);
-    return {
-      values: rows.map((r) => aqiToUgm3(r.AQI)),
-      area: rows[0]?.ReportingArea ?? null,
-      observedAt: rows[0]
-        ? `${rows[0].DateObserved?.trim()}T${String(rows[0].HourObserved).padStart(2, '0')}:00`
+    return rows.map((r) => ({
+      ug: aqiToUgm3(r.AQI),
+      distanceMi: Number.isFinite(r.Latitude)
+        ? haversineMi(lat, lon, r.Latitude, r.Longitude)
         : null,
-    };
+      area: r.ReportingArea ?? null,
+      observedAt: `${r.DateObserved?.trim()}T${String(r.HourObserved).padStart(2, '0')}:00`,
+    }));
   } catch {
-    return { values: [], area: null, observedAt: null };
+    return [];
   }
 }
 
@@ -37,18 +49,23 @@ async function purpleairUgm3(lat, lon, key) {
   try {
     const url =
       `https://api.purpleair.com/v1/sensors` +
-      `?fields=pm2.5_cf_1,humidity&location_type=0&max_age=3600` +
+      `?fields=pm2.5_cf_1,humidity,latitude,longitude&location_type=0&max_age=3600` +
       `&nwlng=${lon - 0.5}&nwlat=${lat + 0.4}&selng=${lon + 0.5}&selat=${lat - 0.4}`;
     const res = await fetch(url, { headers: { 'X-API-Key': key } });
     if (!res.ok) return [];
     const data = await res.json();
     const iPm = data.fields.indexOf('pm2.5_cf_1');
     const iRh = data.fields.indexOf('humidity');
+    const iLat = data.fields.indexOf('latitude');
+    const iLon = data.fields.indexOf('longitude');
     return data.data
-      .map((row) => ({ pm: row[iPm], rh: row[iRh] }))
+      .map((row) => ({ pm: row[iPm], rh: row[iRh], slat: row[iLat], slon: row[iLon] }))
       .filter((s) => Number.isFinite(s.pm))
       .slice(0, 200)
-      .map((s) => epaCorrect(s.pm, s.rh));
+      .map((s) => ({
+        ug: epaCorrect(s.pm, s.rh),
+        distanceMi: Number.isFinite(s.slat) ? haversineMi(lat, lon, s.slat, s.slon) : null,
+      }));
   } catch {
     return [];
   }
@@ -60,35 +77,47 @@ function median(values) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-// Two honest answers, kept separate: "official" is the government-monitor
-// picture (what Apple/weather.com-family apps show — the nearest station
-// can sit 40+ miles away), "local" is the median of EPA-corrected PurpleAir
-// units within ~30 miles. During fast-moving smoke they legitimately
+// Two honest answers, kept separate: "official" is the NEAREST government
+// monitor's reading with its actual distance (what Apple/weather.com-family
+// apps reflect), "local" is the median of EPA-corrected PurpleAir units with
+// their typical distance. During fast-moving smoke they legitimately
 // disagree; blending them yields a number neither source said.
 export async function measuredSources(lat, lon, { airnowKey, purpleairKey }) {
-  const [airnow, purpleair] = await Promise.all([
+  const [airnowRows, purpleairRows] = await Promise.all([
     airnowUgm3(lat, lon, airnowKey),
     purpleairUgm3(lat, lon, purpleairKey),
   ]);
 
-  const officialUg = median(airnow.values);
-  const localUg = median(purpleair);
   const round = (v) => Math.round(v * 10) / 10;
+  const roundMi = (v) => (v == null ? null : v < 10 ? Math.round(v * 10) / 10 : Math.round(v));
+
+  const nearestOfficial = airnowRows
+    .slice()
+    .sort((a, b) => (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity))[0];
+  const localUg = median(purpleairRows.map((s) => s.ug));
+  const localDist = median(
+    purpleairRows.map((s) => s.distanceMi).filter((d) => Number.isFinite(d)),
+  );
 
   return {
-    official:
-      officialUg != null
-        ? {
-            ug: round(officialUg),
-            aqi: ugm3ToAqi(officialUg),
-            count: airnow.values.length,
-            area: airnow.area,
-            observedAt: airnow.observedAt,
-          }
-        : null,
+    official: nearestOfficial
+      ? {
+          ug: round(nearestOfficial.ug),
+          aqi: ugm3ToAqi(nearestOfficial.ug),
+          count: airnowRows.length,
+          area: nearestOfficial.area,
+          distanceMi: roundMi(nearestOfficial.distanceMi),
+          observedAt: nearestOfficial.observedAt,
+        }
+      : null,
     local:
       localUg != null
-        ? { ug: round(localUg), aqi: ugm3ToAqi(localUg), count: purpleair.length }
+        ? {
+            ug: round(localUg),
+            aqi: ugm3ToAqi(localUg),
+            count: purpleairRows.length,
+            medianDistanceMi: roundMi(localDist),
+          }
         : null,
   };
 }

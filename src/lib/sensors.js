@@ -19,11 +19,13 @@ export async function fetchSensorsNear(lat, lon) {
     if ([mo, ml, ms].some(Number.isFinite)) {
       return {
         official: Number.isFinite(mo)
-          ? { aqi: mo, ug: aqiToUgm3(mo), count: 1, area: 'Dev official' }
+          ? { aqi: mo, ug: aqiToUgm3(mo), count: 1, area: 'Dev official', distanceMi: 38 }
           : Number.isFinite(ms)
             ? { aqi: ugm3ToAqi(ms), ug: ms, count: 3, area: 'Dev mock' }
             : null,
-        local: Number.isFinite(ml) ? { aqi: ml, ug: aqiToUgm3(ml), count: 9 } : null,
+        local: Number.isFinite(ml)
+          ? { aqi: ml, ug: aqiToUgm3(ml), count: 9, medianDistanceMi: 8 }
+          : null,
       };
     }
     return null;
