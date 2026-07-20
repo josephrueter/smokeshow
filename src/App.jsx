@@ -7,7 +7,6 @@ import LakeScene from './components/LakeScene.jsx';
 import Scrubber from './components/Scrubber.jsx';
 import AgreementBand from './components/AgreementBand.jsx';
 import FiveDayStrip from './components/FiveDayStrip.jsx';
-import ForecastText from './components/ForecastText.jsx';
 import SharedBanner from './components/SharedBanner.jsx';
 import ShareButton from './components/ShareButton.jsx';
 import InstallNudge from './components/InstallNudge.jsx';
@@ -19,7 +18,6 @@ import { fetchGridPM25, findNowIndex } from './lib/openMeteo.js';
 import { computeAgreement } from './lib/agreement.js';
 import { fetchHRRR, hrrrSeriesAt } from './lib/hrrr.js';
 import { fetchSensorsNear, applySensorAnchor } from './lib/sensors.js';
-import { buildForecastText } from './lib/forecastText.js';
 import { buildDaySummaries } from './lib/days.js';
 import { computeVerdict, verdictHeadline } from './lib/verdict.js';
 import { levelForPM25 } from './lib/rating.js';
@@ -271,16 +269,6 @@ export default function App() {
         : [],
     [centerData, anchoredPm25, nowIndex],
   );
-  const forecastText = useMemo(() => {
-    if (!centerData || !anchoredPm25) return '';
-    return buildForecastText({
-      timesUTC: centerData.timesUTC,
-      pm25: anchoredPm25,
-      nowIndex,
-      timezone: TIMEZONE,
-    });
-  }, [centerData, anchoredPm25, nowIndex]);
-
   // "Update location" opens a chooser: search any city, or re-use the GPS.
   function handleUpdateLocation() {
     setPlaying(false);
@@ -460,7 +448,6 @@ export default function App() {
         nowIndex={nowIndex}
         timezone={TIMEZONE}
       />
-      <ForecastText text={forecastText} />
       <InstallNudge levelIndex={nowLevel?.index ?? 0} headline={headline} />
     </div>
   );
