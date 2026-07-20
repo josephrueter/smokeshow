@@ -1,7 +1,12 @@
+import { useEffect, useRef, useState } from 'react';
 import { OLFACTORY_FATIGUE_LEVEL_INDEX, NOSE_CAVEAT } from '../lib/rating.js';
 import { ugm3ToAqi, aqiCategory } from '../lib/aqi.js';
+import { getJSON, setJSON } from '../lib/storage.js';
 
 const DISAGREE_AQI_GAP = 25;
+// Teach the two-source explanation on the first few times a user actually
+// sees a disagreement, then collapse it — they can reopen anytime.
+const WHY_TWO_TEACH_VIEWS = 3;
 
 export default function RatingChip({
   level,
@@ -19,6 +24,19 @@ export default function RatingChip({
   const category = aqiCategory(aqi);
   const both = !!(sources?.official && sources?.local);
   const disagree = both && Math.abs(sources.official.aqi - sources.local.aqi) >= DISAGREE_AQI_GAP;
+
+  // Open by default for the first WHY_TWO_TEACH_VIEWS disagreement views, then
+  // collapsed; the toggle lets the user reopen it. Sensor data arrives async,
+  // so count the first time disagree flips true this mount (not on mount).
+  const [whyOpen, setWhyOpen] = useState(false);
+  const countedRef = useRef(false);
+  useEffect(() => {
+    if (!(disagree && isNow) || countedRef.current) return;
+    countedRef.current = true;
+    const seen = getJSON('whyTwoSeen') || 0;
+    setWhyOpen(seen < WHY_TWO_TEACH_VIEWS);
+    setJSON('whyTwoSeen', seen + 1);
+  }, [disagree, isNow]);
 
   return (
     <div className={`rating-chip rating-chip--${level.key}`}>
@@ -69,17 +87,30 @@ export default function RatingChip({
       <div className="rating-chip__notice">{level.notice}</div>
       {disagree && isNow && (
         <div className="rating-chip__why-two">
-          Why two numbers? Official is the nearest government monitor,{' '}
-          {sources.official.distanceMi != null
-            ? `about ${sources.official.distanceMi} miles from you`
-            : 'which can sit many miles away'}
-          . Local is the median of {sources.local.count} PurpleAir sensor
-          {sources.local.count === 1 ? '' : 's'}
-          {sources.local.medianDistanceMi != null
-            ? `, typically about ${sources.local.medianDistanceMi} miles away`
-            : ' around you'}
-          . Fast-moving smoke makes them disagree, and the reading closer to you is usually the
-          better bet.
+          <button
+            type="button"
+            className="rating-chip__why-toggle"
+            onClick={() => setWhyOpen((v) => !v)}
+            aria-expanded={whyOpen}
+          >
+            Why two numbers?
+            <span className="rating-chip__why-caret">{whyOpen ? '–' : '+'}</span>
+          </button>
+          {whyOpen && (
+            <p className="rating-chip__why-body">
+              Official is the nearest government monitor,{' '}
+              {sources.official.distanceMi != null
+                ? `about ${sources.official.distanceMi} miles from you`
+                : 'which can sit many miles away'}
+              . Local is the median of {sources.local.count} PurpleAir sensor
+              {sources.local.count === 1 ? '' : 's'}
+              {sources.local.medianDistanceMi != null
+                ? `, typically about ${sources.local.medianDistanceMi} miles away`
+                : ' around you'}
+              . Fast-moving smoke makes them disagree, and the reading closer to you is usually
+              the better bet.
+            </p>
+          )}
         </div>
       )}
       {level.index >= OLFACTORY_FATIGUE_LEVEL_INDEX ? (

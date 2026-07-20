@@ -221,6 +221,32 @@ body {
   padding: 0.5rem 0.7rem;
 }
 
+.rating-chip__why-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.rating-chip__why-caret {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1rem;
+  margin-left: 0.5rem;
+}
+
+.rating-chip__why-body {
+  margin: 0.45rem 0 0;
+}
+
 .rating-chip__aqi-row {
   display: flex;
   align-items: center;
