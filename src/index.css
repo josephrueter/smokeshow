@@ -650,6 +650,8 @@ body {
   display: flex;
   gap: 0.4rem;
   overflow-x: auto;
+  overflow-anchor: none; /* don't shift scrollLeft when the past panel expands */
+  scroll-behavior: smooth;
   padding-bottom: 0.2rem;
 }
 

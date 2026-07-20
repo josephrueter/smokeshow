@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { buildDaySummaries, buildPastDaySummaries, bucketForPM25 } from '../lib/days.js';
 import { levelForPM25 } from '../lib/rating.js';
 import { ugm3ToAqi, aqiToUgm3 } from '../lib/aqi.js';
@@ -141,6 +141,17 @@ function DayDetail({ day, hours, measured }) {
 
 export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone, measuredDays }) {
   const [showPast, setShowPast] = useState(false);
+  const stripRef = useRef(null);
+
+  // Opening the past panel inserts boxes to the left of the visible anchor;
+  // the browser's scroll anchoring shifts scrollLeft to keep today stable,
+  // which clips the toggle + first past box off the left edge. Snap the
+  // strip back to the start so the freshly-revealed past days are visible.
+  useEffect(() => {
+    if (showPast && stripRef.current) {
+      stripRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    }
+  }, [showPast]);
   // undefined = untouched (default to today's panel open); null = user closed it
   const [selectedKey, setSelectedKey] = useState(undefined);
 
@@ -173,7 +184,7 @@ export default function FiveDayStrip({ timesUTC, pm25, nowIndex, timezone, measu
 
   return (
     <div className="five-day-strip-wrap">
-      <div className="five-day-strip">
+      <div className="five-day-strip" ref={stripRef}>
         {pastDays.length > 0 && (
           <button
             type="button"
