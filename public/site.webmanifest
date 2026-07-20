@@ -3,7 +3,7 @@
   "short_name": "SMOKESHOW",
   "description": "Smoky where you are? An animated smoke forecast in plain language.",
   "start_url": "/",
-  "display": "browser",
+  "display": "standalone",
   "background_color": "#16130f",
   "theme_color": "#16130f",
   "icons": [

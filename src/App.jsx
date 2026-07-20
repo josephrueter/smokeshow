@@ -10,6 +10,7 @@ import FiveDayStrip from './components/FiveDayStrip.jsx';
 import ForecastText from './components/ForecastText.jsx';
 import SharedBanner from './components/SharedBanner.jsx';
 import ShareButton from './components/ShareButton.jsx';
+import InstallNudge from './components/InstallNudge.jsx';
 
 import { requestLocation, setManualLocation, clearLocation } from './lib/geolocation.js';
 import { reverseGeocode } from './lib/geocoding.js';
@@ -458,6 +459,7 @@ export default function App() {
         timezone={TIMEZONE}
       />
       <ForecastText text={forecastText} />
+      <InstallNudge levelIndex={nowLevel?.index ?? 0} headline={headline} />
     </div>
   );
 }
