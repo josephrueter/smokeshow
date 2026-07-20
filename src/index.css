@@ -650,7 +650,7 @@ body {
   display: flex;
   gap: 0.4rem;
   overflow-x: auto;
-  overflow-anchor: none; /* don't shift scrollLeft when the past panel expands */
+  overflow-anchor: none; /* neutralize Chrome/FF anchoring; FiveDayStrip reveals the newest past day (iOS ignores this prop) */
   scroll-behavior: smooth;
   padding-bottom: 0.2rem;
 }
