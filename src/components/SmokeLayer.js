@@ -120,11 +120,25 @@ export class SmokeCanvasLayer extends L.Layer {
         const edge = Math.min(ci, cj, n - ci, n - cj);
         const fade = Math.min(1, (edge + 0.5) / 1.25);
 
+        // Ash-grain stipple: a deterministic per-cell hash sprinkles darker
+        // specks whose density scales with concentration. Density changes
+        // read far more strongly than flat tint changes, so the field
+        // visibly evolves hour to hour. Hash is position-only — no flicker
+        // between frames, specks dissolve in/out as the field moves.
+        const a01 = (al / 255) * fade;
+        const hash = ((((bx * 73856093) ^ (by * 19349663)) >>> 0) % 1000) / 1000;
         const p = (by * bw + bx) * 4;
-        data[p] = r;
-        data[p + 1] = g;
-        data[p + 2] = bl;
-        data[p + 3] = Math.round(al * fade);
+        if (hash < a01 * 0.45) {
+          data[p] = Math.round(r * 0.7);
+          data[p + 1] = Math.round(g * 0.7);
+          data[p + 2] = Math.round(bl * 0.7);
+          data[p + 3] = Math.min(255, Math.round(al * fade * 1.55 + 28));
+        } else {
+          data[p] = r;
+          data[p + 1] = g;
+          data[p + 2] = bl;
+          data[p + 3] = Math.round(al * fade);
+        }
       }
     }
 

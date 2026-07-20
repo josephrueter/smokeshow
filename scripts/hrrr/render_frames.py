@@ -40,12 +40,14 @@ HRRR_PROJ = (
 )
 HRRR_DX = 3000.0
 
-# Same smoke ramp as src/lib/rating.js smokeRGBA — keep in sync.
-STOPS = np.array([0, 12, 35, 55, 150, 300], dtype=float)
-RAMP_R = np.array([235, 210, 176, 120, 60, 18], dtype=float)
-RAMP_G = np.array([235, 208, 160, 96, 46, 15], dtype=float)
-RAMP_B = np.array([232, 200, 140, 76, 40, 14], dtype=float)
-RAMP_A = np.array([0, 0.12, 0.28, 0.45, 0.65, 0.85], dtype=float) * 255
+# Same perceptually-weighted smoke ramp as src/lib/rating.js smokeRGBA —
+# keep in sync.
+STOPS = np.array([0, 3, 8, 12, 20, 35, 55, 150, 300], dtype=float)
+RAMP_R = np.array([205, 198, 192, 186, 176, 160, 126, 64, 20], dtype=float)
+RAMP_G = np.array([207, 200, 190, 180, 165, 140, 100, 50, 16], dtype=float)
+RAMP_B = np.array([210, 204, 188, 170, 146, 114, 78, 42, 15], dtype=float)
+RAMP_A = np.array([0, 0.07, 0.18, 0.27, 0.38, 0.5, 0.62, 0.78, 0.9], dtype=float) * 255
+STIPPLE_CELL_PX = 3  # ash-grain speck cell size, mirrors the client layer
 
 
 def merc_y(lat_deg):
@@ -67,6 +69,20 @@ def colorize(ug_m3):
     g = np.interp(v, STOPS, RAMP_G)
     b = np.interp(v, STOPS, RAMP_B)
     a = np.interp(v, STOPS, RAMP_A)
+
+    # Ash-grain stipple, same deterministic hash idea as the client canvas:
+    # darker specks whose density follows concentration, stable frame to
+    # frame so playback shows dissolve rather than flicker.
+    h, w = v.shape
+    ys, xs = np.mgrid[0:h, 0:w]
+    cx = (xs // STIPPLE_CELL_PX).astype(np.int64)
+    cy = (ys // STIPPLE_CELL_PX).astype(np.int64)
+    hash01 = (((cx * 73856093) ^ (cy * 19349663)) % 1000) / 1000.0
+    speck = hash01 < (a / 255.0) * 0.45
+    r = np.where(speck, r * 0.7, r)
+    g = np.where(speck, g * 0.7, g)
+    b = np.where(speck, b * 0.7, b)
+    a = np.where(speck, np.minimum(255, a * 1.55 + 28), a)
     return np.dstack([r, g, b, a]).astype(np.uint8)
 
 

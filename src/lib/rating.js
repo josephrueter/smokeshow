@@ -74,13 +74,20 @@ export function cigaretteEquivalent(pm25Over24h) {
 
 // Translucent gray -> brown -> near-black ramp, opacity rising with concentration.
 // Not an AQI rainbow: this is meant to look like smoke, not a legend.
+// Perceptually weighted: most of the visible ramp is spent below 55 µg/m³,
+// because that's where most days actually live — a linear ramp made light
+// haze invisible and the map looked frozen. Keep in sync with
+// scripts/hrrr/render_frames.py.
 const SMOKE_STOPS = [
-  { pm25: 0, rgb: [235, 235, 232], alpha: 0 },
-  { pm25: 12, rgb: [210, 208, 200], alpha: 0.12 },
-  { pm25: 35, rgb: [176, 160, 140], alpha: 0.28 },
-  { pm25: 55, rgb: [120, 96, 76], alpha: 0.45 },
-  { pm25: 150, rgb: [60, 46, 40], alpha: 0.65 },
-  { pm25: 300, rgb: [18, 15, 14], alpha: 0.85 },
+  { pm25: 0, rgb: [205, 207, 210], alpha: 0 },
+  { pm25: 3, rgb: [198, 200, 204], alpha: 0.07 },
+  { pm25: 8, rgb: [192, 190, 188], alpha: 0.18 },
+  { pm25: 12, rgb: [186, 180, 170], alpha: 0.27 },
+  { pm25: 20, rgb: [176, 165, 146], alpha: 0.38 },
+  { pm25: 35, rgb: [160, 140, 114], alpha: 0.5 },
+  { pm25: 55, rgb: [126, 100, 78], alpha: 0.62 },
+  { pm25: 150, rgb: [64, 50, 42], alpha: 0.78 },
+  { pm25: 300, rgb: [20, 16, 15], alpha: 0.9 },
 ];
 
 // Numeric variant for per-pixel field rendering: [r, g, b, alpha 0-255].
