@@ -24,7 +24,7 @@ import { computeVerdict, verdictHeadline } from './lib/verdict.js';
 import { levelForPM25 } from './lib/rating.js';
 import { ugm3ToAqi } from './lib/aqi.js';
 import { formatLocalTime, formatVerdictTime } from './lib/time.js';
-import { clearKey } from './lib/storage.js';
+import { getJSON, setJSON, clearKey } from './lib/storage.js';
 
 // Map (and Leaflet with it) loads as a separate chunk after the verdict paints —
 // share-spec rule: rating chip + clear-time render first from a single point
@@ -71,7 +71,8 @@ export default function App() {
   const [gridFailed, setGridFailed] = useState(false);
   const fetchingTiersRef = useRef(new Set());
   const [hrrr, setHrrr] = useState(null);
-  const [sensorNow, setSensorNow] = useState(null);
+  const [sensorNow, setSensorNow] = useState(null); // { official, local } | null
+  const [aqiSource, setAqiSource] = useState(() => getJSON('aqiSource') || 'official');
   const [measuredDays, setMeasuredDays] = useState(new Map());
   const [nowIndex, setNowIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -244,17 +245,31 @@ export default function App() {
     [centerData, hrrrLocal],
   );
 
-  // Experience surfaces (chip, verdict, strip, forecast text) read the
-  // sensor-anchored series; the agreement band and map stay pure model —
-  // comparing models to each other with sensor corrections baked in would
-  // muddy exactly the signal the band exists to show.
+  // The user picks which measured truth anchors the verdict: the official
+  // monitor picture (matches other apps) or the local PurpleAir median.
+  const activeSensor = useMemo(() => {
+    if (!sensorNow) return null;
+    return aqiSource === 'local'
+      ? (sensorNow.local ?? sensorNow.official)
+      : (sensorNow.official ?? sensorNow.local);
+  }, [sensorNow, aqiSource]);
+
+  // Experience surfaces (chip, verdict, strip) read the sensor-anchored
+  // series; the agreement band and map stay pure model — comparing models
+  // to each other with sensor corrections baked in would muddy exactly the
+  // signal the band exists to show.
   const anchoredPm25 = useMemo(
     () =>
       centerData
-        ? applySensorAnchor(centerData.pm25, nowIndex, sensorNow?.measured ?? null)
+        ? applySensorAnchor(centerData.pm25, nowIndex, activeSensor?.ug ?? null)
         : null,
-    [centerData, nowIndex, sensorNow],
+    [centerData, nowIndex, activeSensor],
   );
+
+  function handleSourceChange(source) {
+    setAqiSource(source);
+    setJSON('aqiSource', source);
+  }
 
   const verdict = useMemo(
     () => (anchoredPm25 ? computeVerdict({ pm25: anchoredPm25, nowIndex }) : null),
@@ -395,7 +410,10 @@ export default function App() {
         isNow={selectedIndex === nowIndex}
         timeLabel={formatLocalTime(centerData.timesUTC[selectedIndex], TIMEZONE)}
         headline={selectedIndex === nowIndex ? headline : null}
-        sensor={selectedIndex === nowIndex ? sensorNow : null}
+        sensor={selectedIndex === nowIndex ? activeSensor : null}
+        sources={sensorNow}
+        aqiSource={aqiSource}
+        onSourceChange={handleSourceChange}
       />
       <LakeScene pm25={selectedPM25} />
       <ShareButton

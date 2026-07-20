@@ -54,20 +54,41 @@ async function purpleairUgm3(lat, lon, key) {
   }
 }
 
-export async function measuredMedian(lat, lon, { airnowKey, purpleairKey }) {
+function median(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+// Two honest answers, kept separate: "official" is the government-monitor
+// picture (what Apple/weather.com-family apps show — the nearest station
+// can sit 40+ miles away), "local" is the median of EPA-corrected PurpleAir
+// units within ~30 miles. During fast-moving smoke they legitimately
+// disagree; blending them yields a number neither source said.
+export async function measuredSources(lat, lon, { airnowKey, purpleairKey }) {
   const [airnow, purpleair] = await Promise.all([
     airnowUgm3(lat, lon, airnowKey),
     purpleairUgm3(lat, lon, purpleairKey),
   ]);
-  const pool = [...airnow.values, ...purpleair].sort((a, b) => a - b);
-  if (!pool.length) return null;
-  const ug = pool[Math.floor(pool.length / 2)];
+
+  const officialUg = median(airnow.values);
+  const localUg = median(purpleair);
+  const round = (v) => Math.round(v * 10) / 10;
+
   return {
-    ug: Math.round(ug * 10) / 10,
-    aqi: ugm3ToAqi(ug),
-    count: pool.length,
-    sources: { airnow: airnow.values.length, purpleair: purpleair.length },
-    area: airnow.area,
-    observedAt: airnow.observedAt,
+    official:
+      officialUg != null
+        ? {
+            ug: round(officialUg),
+            aqi: ugm3ToAqi(officialUg),
+            count: airnow.values.length,
+            area: airnow.area,
+            observedAt: airnow.observedAt,
+          }
+        : null,
+    local:
+      localUg != null
+        ? { ug: round(localUg), aqi: ugm3ToAqi(localUg), count: purpleair.length }
+        : null,
   };
 }

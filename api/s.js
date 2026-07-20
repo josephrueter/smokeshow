@@ -2,7 +2,7 @@ import { levelForPM25 } from '../src/lib/rating.js';
 import { computeVerdict, verdictHeadline } from '../src/lib/verdict.js';
 import { applySensorAnchor } from '../src/lib/sensors.js';
 import { ugm3ToAqi } from '../src/lib/aqi.js';
-import { measuredMedian } from '../src/lib/measured.js';
+import { measuredSources } from '../src/lib/measured.js';
 
 export const config = { runtime: 'edge' };
 
@@ -33,11 +33,12 @@ function formatWallClock(timeStr) {
 // link preview and the page tell the same story. Soft-fails to model-only.
 async function measuredNearby(lat, lon) {
   try {
-    const median = await measuredMedian(lat, lon, {
+    const sources = await measuredSources(lat, lon, {
       airnowKey: process.env.AIRNOW_API_KEY,
       purpleairKey: process.env.PURPLEAIR_API_KEY,
     });
-    return median?.ug ?? null;
+    // Previews lead with the official picture — it's what other apps show.
+    return sources.official?.ug ?? sources.local?.ug ?? null;
   } catch {
     return null;
   }

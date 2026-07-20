@@ -1,16 +1,30 @@
 import { snapCoord } from './grid.js';
+import { aqiToUgm3, ugm3ToAqi } from './aqi.js';
 
 // Measured "Now" from nearby AirNow sensors via /api/sensors (key lives in a
 // Vercel env var — never on the client). Returns null whenever unavailable:
 // no key yet, no sensors nearby, dev server, network trouble. Null means the
 // app behaves exactly as model-only.
+// Returns { official, local } (either may be null) or null when nothing
+// measured is available.
 export async function fetchSensorsNear(lat, lon) {
   if (import.meta.env?.DEV) {
-    // No edge functions under the Vite dev server. ?mockSensors=<µg/m³>
-    // exercises the full anchor pipeline in dev/tests.
-    const mock = new URLSearchParams(window.location.search).get('mockSensors');
-    if (mock != null && Number.isFinite(Number(mock))) {
-      return { measured: Number(mock), aqi: null, count: 3, area: 'Dev mock', observedAt: null };
+    // No edge functions under the Vite dev server. Mocks exercise the full
+    // pipeline: ?mockOfficial=<AQI>&mockLocal=<AQI>, or legacy
+    // ?mockSensors=<µg/m³> (treated as an official reading).
+    const params = new URLSearchParams(window.location.search);
+    const mo = Number(params.get('mockOfficial'));
+    const ml = Number(params.get('mockLocal'));
+    const ms = Number(params.get('mockSensors'));
+    if ([mo, ml, ms].some(Number.isFinite)) {
+      return {
+        official: Number.isFinite(mo)
+          ? { aqi: mo, ug: aqiToUgm3(mo), count: 1, area: 'Dev official' }
+          : Number.isFinite(ms)
+            ? { aqi: ugm3ToAqi(ms), ug: ms, count: 3, area: 'Dev mock' }
+            : null,
+        local: Number.isFinite(ml) ? { aqi: ml, ug: aqiToUgm3(ml), count: 9 } : null,
+      };
     }
     return null;
   }
@@ -19,7 +33,7 @@ export async function fetchSensorsNear(lat, lon) {
     const res = await fetch(`/api/sensors?lat=${snapCoord(lat)}&lon=${snapCoord(lon)}`);
     if (!res.ok) return null;
     const data = await res.json();
-    return data.measured != null ? data : null;
+    return data.official || data.local ? data : null;
   } catch {
     return null;
   }

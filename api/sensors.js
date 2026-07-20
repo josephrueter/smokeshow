@@ -1,4 +1,4 @@
-import { measuredMedian } from '../src/lib/measured.js';
+import { measuredSources } from '../src/lib/measured.js';
 
 export const config = { runtime: 'edge' };
 
@@ -23,21 +23,14 @@ export default async function handler(req) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return empty('bad-coords');
 
   try {
-    const median = await measuredMedian(lat, lon, {
+    const sources = await measuredSources(lat, lon, {
       airnowKey: process.env.AIRNOW_API_KEY,
       purpleairKey: process.env.PURPLEAIR_API_KEY,
     });
-    if (!median) return empty('no-sensors-nearby');
+    if (!sources.official && !sources.local) return empty('no-sensors-nearby');
 
     return new Response(
-      JSON.stringify({
-        measured: median.ug,
-        aqi: median.aqi,
-        count: median.count,
-        sources: median.sources,
-        area: median.area,
-        observedAt: median.observedAt,
-      }),
+      JSON.stringify(sources),
       {
         headers: {
           'content-type': 'application/json',
