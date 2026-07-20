@@ -1,7 +1,8 @@
 import { levelForPM25 } from '../src/lib/rating.js';
 import { computeVerdict, verdictHeadline } from '../src/lib/verdict.js';
 import { applySensorAnchor } from '../src/lib/sensors.js';
-import { ugm3ToAqi, aqiToUgm3, medianPM25Aqi } from '../src/lib/aqi.js';
+import { ugm3ToAqi } from '../src/lib/aqi.js';
+import { measuredMedian } from '../src/lib/measured.js';
 
 export const config = { runtime: 'edge' };
 
@@ -28,19 +29,15 @@ function formatWallClock(timeStr) {
   return `${weekday} ~${hour}`;
 }
 
-// Same sensor anchor as the app (see src/lib/sensors.js) so the link preview
-// and the page tell the same story. Soft-fails to model-only.
+// Same pooled sensor anchor as the app (AirNow + PurpleAir median) so the
+// link preview and the page tell the same story. Soft-fails to model-only.
 async function measuredNearby(lat, lon) {
-  const key = process.env.AIRNOW_API_KEY;
-  if (!key) return null;
   try {
-    const res = await fetch(
-      `https://www.airnowapi.org/aq/observation/latLong/current/` +
-        `?format=application/json&latitude=${lat}&longitude=${lon}&distance=50&API_KEY=${key}`,
-    );
-    if (!res.ok) return null;
-    const median = medianPM25Aqi(await res.json());
-    return median ? aqiToUgm3(median.aqi) : null;
+    const median = await measuredMedian(lat, lon, {
+      airnowKey: process.env.AIRNOW_API_KEY,
+      purpleairKey: process.env.PURPLEAIR_API_KEY,
+    });
+    return median?.ug ?? null;
   } catch {
     return null;
   }
