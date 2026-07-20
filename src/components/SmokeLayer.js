@@ -128,11 +128,11 @@ export class SmokeCanvasLayer extends L.Layer {
         const a01 = (al / 255) * fade;
         const hash = ((((bx * 73856093) ^ (by * 19349663)) >>> 0) % 1000) / 1000;
         const p = (by * bw + bx) * 4;
-        if (hash < a01 * 0.45) {
-          data[p] = Math.round(r * 0.7);
-          data[p + 1] = Math.round(g * 0.7);
-          data[p + 2] = Math.round(bl * 0.7);
-          data[p + 3] = Math.min(255, Math.round(al * fade * 1.55 + 28));
+        if (hash < Math.min(0.16, a01 * 0.24)) {
+          data[p] = Math.round(r * 0.78);
+          data[p + 1] = Math.round(g * 0.78);
+          data[p + 2] = Math.round(bl * 0.78);
+          data[p + 3] = Math.min(255, Math.round(al * fade * 1.3 + 18));
         } else {
           data[p] = r;
           data[p + 1] = g;
