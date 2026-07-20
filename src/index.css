@@ -513,13 +513,10 @@ body {
 
 .agreement-band__summary {
   align-self: flex-start;
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0;
 }
 
 .agreement-band__detail {

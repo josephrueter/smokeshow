@@ -52,10 +52,10 @@ export function summarizeAgreement(agreement, { multiModel = false } = {}) {
   const hasDiverge = agreement.some((a) => a.status === 'diverge');
   if (multiModel) {
     return hasDiverge
-      ? { label: 'Models split — tap for detail', diverged: true }
+      ? { label: 'Models split on timing', diverged: true }
       : { label: 'Models agree', diverged: false };
   }
   return hasDiverge
-    ? { label: 'Forecast shifting between runs — tap for detail', diverged: true }
+    ? { label: 'Forecast shifting between runs', diverged: true }
     : { label: 'Forecast holding steady', diverged: false };
 }
