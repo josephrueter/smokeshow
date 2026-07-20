@@ -30,6 +30,7 @@ export default function handler(req) {
   const { searchParams } = new URL(req.url);
   const rating = searchParams.get('rating') || 'SMOKESHOW';
   const key = searchParams.get('key') || 'smells';
+  const aqi = searchParams.get('aqi') || '';
   const place = searchParams.get('place') || '';
   const line = searchParams.get('line') || '';
   const strip = (searchParams.get('strip') || '')
@@ -55,7 +56,12 @@ export default function handler(req) {
       borderLeft: `14px solid ${accent}`,
       fontFamily: 'sans-serif',
     },
-    place ? h('div', { fontSize: 30, color: '#b8ada0' }, place) : null,
+    h(
+      'div',
+      { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
+      place ? h('div', { fontSize: 30, color: '#b8ada0' }, place) : h('div', {}, ''),
+      aqi ? h('div', { fontSize: 44, fontWeight: 800 }, `AQI ${aqi}`) : null,
+    ),
     h(
       'div',
       { fontSize: rating.length > 14 ? 88 : 120, fontWeight: 800, lineHeight: 1.05 },

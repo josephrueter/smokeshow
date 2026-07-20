@@ -1,6 +1,10 @@
 // Experience scale, thresholds in PM2.5 µg/m³ (EPA breakpoints), visibility
 // anchors calibrated against the published "5-3-1" wildfire-smoke visibility
 // index used by Oregon/Utah/Nevada health agencies.
+// Experience language rules: describe what MOST people notice, never what the
+// reader WILL feel. Noses vary wildly, and fine particles can irritate with
+// no campfire smell at all (dust, exhaust, aged smoke). Visibility is the one
+// objective anchor everyone can check, so each level leads them to the window.
 export const LEVELS = [
   {
     index: 0,
@@ -8,7 +12,7 @@ export const LEVELS = [
     name: 'All clear',
     max: 12,
     visibility: '10+ miles',
-    notice: 'No smell. Sky looks normal. You can see 10+ miles.',
+    notice: 'No smoke to notice. Sky looks normal. You can see 10+ miles.',
   },
   {
     index: 1,
@@ -17,7 +21,7 @@ export const LEVELS = [
     max: 35,
     visibility: '5–10 miles',
     notice:
-      'Faint campfire smell outdoors. Distant treelines look soft. Roughly 5–10 miles of visibility.',
+      'A faint campfire whiff for sensitive noses. Most people just see distant treelines go soft, roughly 5 to 10 miles of visibility.',
   },
   {
     index: 2,
@@ -26,7 +30,7 @@ export const LEVELS = [
     max: 55,
     visibility: '3–5 miles',
     notice:
-      'You smell it the moment you step outside. Sun looks orange at the edges. Roughly 3–5 miles of visibility. Scratchy throat after a long stretch outdoors.',
+      'Most people smell smoke outdoors, though not everyone. The sun can look orange at the edges, and visibility drops to roughly 3 to 5 miles. Long stretches outside may leave a scratchy throat.',
   },
   {
     index: 3,
@@ -35,7 +39,7 @@ export const LEVELS = [
     max: 150,
     visibility: '1.5–3 miles',
     notice:
-      'Smell reaches you indoors near windows. Eyes sting. Roughly 1.5–3 miles of visibility. A full day breathing this is on the order of smoking a few cigarettes.',
+      'Smoke often reaches indoors near windows. Eyes can sting. Visibility runs roughly 1.5 to 3 miles. A full day breathing this is on the order of smoking a few cigarettes.',
   },
   {
     index: 4,
@@ -44,9 +48,15 @@ export const LEVELS = [
     max: Infinity,
     visibility: 'under 1.5 miles',
     notice:
-      'Visibility under ~1.5 miles. Everything smells like a doused campfire. Fine ash possible. Everyone inside, windows closed, run filtration if you have it.',
+      'Visibility under about 1.5 miles. Everything smells like a doused campfire, and fine ash is possible. Everyone inside, windows closed, run filtration if you have it.',
   },
 ];
+
+// Shown at the lower smoke levels, where a reader's nose is most likely to
+// disagree with the number. Turns a potential mismatch into a check they can
+// run themselves instead of an argument.
+export const NOSE_CAVEAT =
+  'Noses differ, and fine particles can irritate without any smell. The honest test is visibility: how far can you see?';
 
 export const ARRIVAL_THRESHOLD = 35; // "Smells like fire" — the forecast-text anchor point
 export const OLFACTORY_FATIGUE_LEVEL_INDEX = 3; // show the nose-fatigue caveat at "Tastes like fire" and above

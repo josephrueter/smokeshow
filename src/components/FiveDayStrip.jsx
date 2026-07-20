@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { buildDaySummaries, buildPastDaySummaries, bucketForPM25 } from '../lib/days.js';
 import { levelForPM25 } from '../lib/rating.js';
+import { ugm3ToAqi } from '../lib/aqi.js';
 
 // Cigarette equivalence only surfaces at "Tastes like fire" and above (brief rule).
 const CIG_THRESHOLD = 55;
@@ -21,7 +22,11 @@ function DayBox({ day, selected, onSelect }) {
       <div className="five-day-strip__level">{day.level?.name}</div>
       {day.max != null && (
         <div className="five-day-strip__range">
-          {Math.round(day.min ?? day.max)}–{Math.round(day.max)} µg/m³
+          {(() => {
+            const lo = ugm3ToAqi(day.min ?? day.max);
+            const hi = ugm3ToAqi(day.max);
+            return lo === hi ? `AQI ${hi}` : `AQI ${lo}–${hi}`;
+          })()}
         </div>
       )}
       {day.isPast ? (
@@ -57,7 +62,7 @@ function DayHours({ hours }) {
     <div className="day-detail__chart">
       <div className="day-detail__readout">
         {picked
-          ? `${picked.label} — ${picked.v == null ? 'no data' : `${Math.round(picked.v)} µg/m³`}`
+          ? `${picked.label}: AQI ${ugm3ToAqi(picked.v) ?? '—'}${picked.v == null ? '' : ` (${Math.round(picked.v)} µg/m³)`}`
           : 'Tap a bar for the hour’s number'}
       </div>
       <div className="day-detail__bars">
@@ -104,9 +109,9 @@ function DayDetail({ day, hours }) {
     <div className="day-detail">
       <p className="day-detail__headline">
         {day.weekday}
-        {day.isPast ? ' (past, model estimate)' : ''}: {Math.round(day.min ?? day.max)}–
-        {Math.round(day.max)} µg/m³ PM2.5 — peak{day.isPast ? 'ed' : 's'} at{' '}
-        <strong>{peakLevel.name}</strong>
+        {day.isPast ? ' (past, model estimate)' : ''}: AQI {ugm3ToAqi(day.min ?? day.max)}–
+        {ugm3ToAqi(day.max)}, that's {Math.round(day.min ?? day.max)}–{Math.round(day.max)} µg/m³
+        of fine particles, peak{day.isPast ? 'ed' : 'ing'} at <strong>{peakLevel.name}</strong>
         {peakHour ? ` around ${peakHour.label}` : ''}.
       </p>
       <DayHours hours={hours} />
@@ -117,12 +122,14 @@ function DayDetail({ day, hours }) {
         </p>
       )}
       <p className="day-detail__what">
-        <strong>What the number means:</strong> PM2.5 is the fine dust in smoke — particles
-        smaller than 2.5 millionths of a meter, so small they slip past your nose and throat and
-        settle deep in your lungs. The µg/m³ number counts how much of that dust each cubic meter
-        of air is carrying — micrograms, millionths of a gram. As rules of thumb: under 12 is
-        normal clean air, around 35 most noses start noticing smoke, and above 150 everyone
-        belongs indoors.
+        <strong>What these numbers mean:</strong> AQI is the 0 to 500 scale most weather apps
+        lead with. It's a translation, not a measurement. The measurement is µg/m³: micrograms of
+        fine particles (PM2.5) in each cubic meter of air, dust so small it slips past your nose
+        and settles deep in your lungs. The two map to each other: AQI 50 is 9 µg/m³, AQI 100 is
+        35 (about where most noses start noticing smoke), AQI 150 is 55, and past AQI 200
+        everyone belongs indoors. Two apps can show different numbers for the same air because
+        they average different hours and blend different sensors. The air didn't change. The math
+        did.
       </p>
     </div>
   );

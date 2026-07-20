@@ -187,6 +187,54 @@ body {
   border-left-color: var(--smokeshow);
 }
 
+.rating-chip__aqi-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.45rem;
+}
+
+.rating-chip__aqi {
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.rating-chip__aqi-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.rating-chip__aqi-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rating-chip__aqi-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.rating-chip__aqi-sub {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.rating-chip__time {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  align-self: flex-start;
+}
+
 .rating-chip__name {
   font-size: 1.6rem;
   font-weight: 700;

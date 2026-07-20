@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { renderShareCard } from '../lib/shareCard.js';
 
-export default function ShareButton({ level, placeName, timeLabel, headline, days, diverged, shareUrl }) {
+export default function ShareButton({ level, aqi, placeName, timeLabel, headline, days, diverged, shareUrl }) {
   const [copied, setCopied] = useState(false);
 
   async function buildCard() {
     return renderShareCard({
       level,
+      aqi,
       placeName,
       timeLabel,
       headline,

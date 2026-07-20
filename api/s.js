@@ -1,5 +1,7 @@
 import { levelForPM25 } from '../src/lib/rating.js';
 import { computeVerdict, verdictHeadline } from '../src/lib/verdict.js';
+import { applySensorAnchor } from '../src/lib/sensors.js';
+import { ugm3ToAqi, aqiToUgm3, medianPM25Aqi } from '../src/lib/aqi.js';
 
 export const config = { runtime: 'edge' };
 
@@ -26,15 +28,33 @@ function formatWallClock(timeStr) {
   return `${weekday} ~${hour}`;
 }
 
+// Same sensor anchor as the app (see src/lib/sensors.js) so the link preview
+// and the page tell the same story. Soft-fails to model-only.
+async function measuredNearby(lat, lon) {
+  const key = process.env.AIRNOW_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch(
+      `https://www.airnowapi.org/aq/observation/latLong/current/` +
+        `?format=application/json&latitude=${lat}&longitude=${lon}&distance=50&API_KEY=${key}`,
+    );
+    if (!res.ok) return null;
+    const median = medianPM25Aqi(await res.json());
+    return median ? aqiToUgm3(median.aqi) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function buildVerdictStrings(lat, lon) {
   const url =
     `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}` +
     `&hourly=pm2_5&past_days=1&forecast_days=5&timezone=auto`;
-  const res = await fetch(url);
+  const [res, measured] = await Promise.all([fetch(url), measuredNearby(lat, lon)]);
   if (!res.ok) throw new Error(`open-meteo ${res.status}`);
   const data = await res.json();
   const times = data.hourly.time;
-  const pm25 = data.hourly.pm2_5;
+  const modelPm25 = data.hourly.pm2_5;
 
   // "Now" in the location's wall-clock frame, matching the naive-as-UTC parse.
   const nowWallMs = Date.now() + (data.utc_offset_seconds || 0) * 1000;
@@ -48,7 +68,9 @@ async function buildVerdictStrings(lat, lon) {
     }
   }
 
+  const pm25 = applySensorAnchor(modelPm25, nowIndex, measured);
   const level = levelForPM25(pm25[nowIndex]);
+  const aqi = ugm3ToAqi(pm25[nowIndex]);
   const verdict = computeVerdict({ pm25, nowIndex });
   const headline = verdictHeadline(verdict, (i) => formatWallClock(times[i]));
 
@@ -67,7 +89,7 @@ async function buildVerdictStrings(lat, lon) {
     return `${weekday}:${levelForPM25(dayMax.get(key)).index}`;
   });
 
-  return { levelName: level.name, levelKey: level.key, headline, strip: strip.join(',') };
+  return { levelName: level.name, levelKey: level.key, aqi, headline, strip: strip.join(',') };
 }
 
 export default async function handler(req) {
@@ -93,13 +115,14 @@ export default async function handler(req) {
   if (Number.isFinite(lat) && Number.isFinite(lon)) {
     try {
       const v = await buildVerdictStrings(lat, lon);
-      title = name ? `${name} — ${v.levelName}` : v.levelName;
+      title = name ? `${name} — AQI ${v.aqi}, ${v.levelName}` : `AQI ${v.aqi} — ${v.levelName}`;
       // Live verdict in the SERP/preview description — when a search engine
       // or messenger shows this instead of rewriting it, it's unbeatable.
-      desc = `${name ? `${name}: ` : ''}${v.levelName}. ${v.headline}. Live wildfire smoke map and 5-day forecast.`;
+      desc = `${name ? `${name}: ` : ''}AQI ${v.aqi}, ${v.levelName}. ${v.headline}. Live wildfire smoke map and 5-day forecast.`;
       const imgParams = new URLSearchParams({
         rating: v.levelName,
         key: v.levelKey,
+        aqi: String(v.aqi),
         place: name,
         line: v.headline,
         strip: v.strip,

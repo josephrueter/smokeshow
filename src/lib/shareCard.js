@@ -22,7 +22,7 @@ function fitText(ctx, text, maxWidth, startPx, family, weight = 700) {
   return px;
 }
 
-export function renderShareCard({ level, placeName, timeLabel, headline, days, diverged, url }) {
+export function renderShareCard({ level, aqi, placeName, timeLabel, headline, days, diverged, url }) {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -38,6 +38,13 @@ export function renderShareCard({ level, placeName, timeLabel, headline, days, d
   ctx.fillStyle = '#b8ada0';
   ctx.font = `600 30px ${family}`;
   ctx.fillText(`${placeName || 'Your air'} · ${timeLabel}`, 60, 78);
+  if (aqi != null) {
+    ctx.fillStyle = '#f1ece3';
+    ctx.font = `800 44px ${family}`;
+    ctx.textAlign = 'right';
+    ctx.fillText(`AQI ${aqi}`, W - 60, 82);
+    ctx.textAlign = 'left';
+  }
 
   ctx.fillStyle = '#f1ece3';
   const namePx = fitText(ctx, level.name, W - 120, 130, family, 800);

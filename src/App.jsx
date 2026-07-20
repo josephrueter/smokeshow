@@ -23,6 +23,7 @@ import { buildForecastText } from './lib/forecastText.js';
 import { buildDaySummaries } from './lib/days.js';
 import { computeVerdict, verdictHeadline } from './lib/verdict.js';
 import { levelForPM25 } from './lib/rating.js';
+import { ugm3ToAqi } from './lib/aqi.js';
 import { formatLocalTime, formatVerdictTime } from './lib/time.js';
 import { getJSON, setJSON } from './lib/storage.js';
 
@@ -400,6 +401,7 @@ export default function App() {
       <LakeScene pm25={selectedPM25} />
       <ShareButton
         level={nowLevel}
+        aqi={ugm3ToAqi(anchoredPm25[nowIndex])}
         placeName={placeName}
         timeLabel={formatLocalTime(centerData.timesUTC[nowIndex], TIMEZONE)}
         headline={headline}
