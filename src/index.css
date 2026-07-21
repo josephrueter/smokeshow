@@ -1000,6 +1000,15 @@ body {
   line-height: 1.5;
 }
 
+.disclaimer__sources {
+  margin-top: 0.6rem;
+  font-size: 0.72rem;
+}
+
+.disclaimer__sources a {
+  color: inherit;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
