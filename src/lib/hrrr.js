@@ -18,10 +18,6 @@ export async function fetchHRRR() {
   return { manifest, series, frameByTime };
 }
 
-export function hrrrFrameURL(hrrr, timeUTC) {
-  return hrrr?.frameByTime.get(timeUTC) ?? null;
-}
-
 // Nearest 1-degree cell's forecast series for a location, as a time->µg/m³
 // map. Returns null outside the HRRR CONUS domain.
 export function hrrrSeriesAt(series, lat, lon) {

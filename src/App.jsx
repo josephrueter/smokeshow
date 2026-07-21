@@ -81,15 +81,23 @@ export default function App() {
   const [error, setError] = useState(null);
   const [choosingLocation, setChoosingLocation] = useState(false);
   const playIntervalRef = useRef(null);
+  const hrrrStartedRef = useRef(false);
 
   useEffect(() => {
     const shared = parseSharedParams();
     if (shared) setLocation(shared);
     else requestLocation().then(setLocation);
-    // HRRR feed is additive — the app is fully functional without it.
-    fetchHRRR().then(setHrrr).catch(() => {});
     clearKey('previousRun'); // run-to-run comparison retired; drop the stale cache
   }, []);
+
+  // HRRR is additive and its series.json is heavy; defer the fetch until the
+  // verdict has painted (centerData present) so it never competes with the
+  // stage-1 forecast request on a cellular link. Fires once per session.
+  useEffect(() => {
+    if (!centerData || hrrrStartedRef.current) return;
+    hrrrStartedRef.current = true;
+    fetchHRRR().then(setHrrr).catch(() => {});
+  }, [centerData]);
 
   useEffect(() => {
     if (!location?.granted) {

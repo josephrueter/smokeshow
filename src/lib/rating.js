@@ -58,18 +58,12 @@ export const LEVELS = [
 export const NOSE_CAVEAT =
   'Noses differ, and fine particles can irritate without any smell. The honest test is visibility: how far can you see?';
 
-export const ARRIVAL_THRESHOLD = 35; // "Smells like fire" — the forecast-text anchor point
+export const ARRIVAL_THRESHOLD = 35; // "Smells like fire" — verdict arrival/clear-time threshold
 export const OLFACTORY_FATIGUE_LEVEL_INDEX = 3; // show the nose-fatigue caveat at "Tastes like fire" and above
 
 export function levelForPM25(pm25) {
   if (pm25 == null || Number.isNaN(pm25)) return null;
   return LEVELS.find((l) => pm25 < l.max) ?? LEVELS[LEVELS.length - 1];
-}
-
-// Berkeley Earth rule of thumb: ~22 µg/m³ sustained over 24h ≈ one cigarette.
-// Only meaningful — and only surfaced in the UI — at "Tastes like fire" and above.
-export function cigaretteEquivalent(pm25Over24h) {
-  return pm25Over24h / 22;
 }
 
 // Translucent gray -> brown -> near-black ramp, opacity rising with concentration.
@@ -114,9 +108,4 @@ export function smokeRGBA(pm25) {
     Math.round(lo.rgb[2] + (hi.rgb[2] - lo.rgb[2]) * t),
     Math.round((lo.alpha + (hi.alpha - lo.alpha) * t) * 255),
   ];
-}
-
-export function smokeColorForPM25(pm25) {
-  const [r, g, b, a] = smokeRGBA(pm25);
-  return `rgba(${r}, ${g}, ${b}, ${(a / 255).toFixed(3)})`;
 }
